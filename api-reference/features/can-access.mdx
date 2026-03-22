@@ -1,0 +1,65 @@
+---
+title: Check Feature Access
+api: GET /api/public/can-access
+description: Check if a tenant has access to a specific feature.
+---
+
+Returns whether the tenant's active plan includes the requested feature key.
+
+## Query Parameters
+
+<ParamField query="publicKey" type="string" required>
+  Your public key (`pk_live_...`)
+</ParamField>
+
+<ParamField query="featureKey" type="string" required>
+  The feature key to check (must match a key in `plan.features`)
+</ParamField>
+
+<ParamField query="requestingEntityId" type="string" required>
+  The external tenant ID from your application
+</ParamField>
+
+## Response
+
+<ResponseField name="data.canAccess" type="boolean">
+  Whether the tenant can access the feature
+</ResponseField>
+
+<ResponseField name="data.featureKey" type="string">
+  The feature key that was checked
+</ResponseField>
+
+<ResponseField name="data.requestingEntityId" type="string">
+  The tenant ID that was checked
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl "https://api.crovver.com/api/public/can-access?publicKey=pk_live_...&featureKey=advanced_analytics&requestingEntityId=workspace_123"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Has Access
+{
+  "success": true,
+  "data": {
+    "canAccess": true,
+    "featureKey": "advanced_analytics",
+    "requestingEntityId": "workspace_123"
+  }
+}
+```
+
+```json 200 No Access
+{
+  "success": true,
+  "data": {
+    "canAccess": false,
+    "featureKey": "advanced_analytics",
+    "requestingEntityId": "workspace_123"
+  }
+}
+```
+</ResponseExample>

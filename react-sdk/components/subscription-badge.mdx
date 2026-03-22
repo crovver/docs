@@ -1,0 +1,38 @@
+---
+title: SubscriptionBadge
+description: Display the current subscription status as a styled badge.
+---
+
+`<SubscriptionBadge>` renders a small badge showing the tenant's current subscription status. Useful in headers, settings pages, or user menus.
+
+## Usage
+
+```tsx
+import { SubscriptionBadge } from 'crovver-react';
+
+<SubscriptionBadge />
+```
+
+## Output Examples
+
+| Status | Badge |
+|---|---|
+| `active` | `Active` (green) |
+| `trialing` | `Trial` (blue) |
+| `past_due` | `Past Due` (yellow) |
+| `canceled` | `Canceled` (red) |
+| `none` | `No Plan` (gray) |
+
+## Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `showPlanName` | `boolean` | `false` | Append plan name to the badge (e.g., "Pro · Active") |
+| `className` | `string` | | Additional CSS classes |
+
+## Example with Plan Name
+
+```tsx
+<SubscriptionBadge showPlanName />
+// → "Pro · Active"
+```

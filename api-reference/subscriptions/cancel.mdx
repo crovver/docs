@@ -1,0 +1,52 @@
+---
+title: Cancel Subscription
+api: POST /api/public/subscriptions/{subscriptionId}/cancel
+description: Cancel an active subscription.
+---
+
+Cancels a subscription. The subscription moves to `canceled` status and the tenant loses access immediately (or at the end of the billing period, depending on your configuration).
+
+## Path Parameters
+
+<ParamField path="subscriptionId" type="string" required>
+  The Crovver subscription ID
+</ParamField>
+
+## Request Body
+
+<ParamField body="reason" type="string" required>
+  Cancellation reason. One of: `too_expensive`, `missing_features`, `switching_provider`, `not_using`, `other`
+</ParamField>
+
+<ParamField body="feedback" type="string">
+  Optional free-text feedback from the user
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key`).
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.crovver.com/api/public/subscriptions/sub_xyz/cancel" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reason": "too_expensive",
+    "feedback": "Would come back at a lower price point"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "subscriptionId": "sub_xyz",
+    "status": "canceled",
+    "canceledAt": "2025-01-15T12:00:00Z"
+  }
+}
+```
+</ResponseExample>

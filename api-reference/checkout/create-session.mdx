@@ -1,0 +1,77 @@
+---
+title: Create Checkout Session
+api: POST /api/public/checkout
+description: Create a payment provider checkout session for a tenant.
+---
+
+Creates a checkout session with the configured payment provider (e.g., Stripe) and returns a URL to redirect the user to.
+
+## Request Body
+
+<ParamField body="requestingUserId" type="string" required>
+  The user ID from your application (required for D2C; used as `externalTenantId`)
+</ParamField>
+
+<ParamField body="requestingTenantId" type="string">
+  The workspace/tenant ID (required for B2B orgs)
+</ParamField>
+
+<ParamField body="planId" type="string" required>
+  The Crovver plan ID to subscribe to
+</ParamField>
+
+<ParamField body="provider" type="string" required>
+  Payment provider name (e.g., `stripe`, `khalti`, `esewa`)
+</ParamField>
+
+<ParamField body="totalCapacityUnits" type="number">
+  Number of seats to purchase (seat-based plans only)
+</ParamField>
+
+<ParamField body="userEmail" type="string">
+  Pre-fills the payment provider's checkout form
+</ParamField>
+
+<ParamField body="successUrl" type="string" required>
+  URL to redirect to after successful payment
+</ParamField>
+
+<ParamField body="cancelUrl" type="string" required>
+  URL to redirect to if the user cancels checkout
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Arbitrary key-value pairs passed through to the payment provider
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key` + `?orgId=`).
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.crovver.com/api/public/checkout" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestingUserId": "user_123",
+    "planId": "plan_pro",
+    "provider": "stripe",
+    "successUrl": "https://app.com/welcome",
+    "cancelUrl": "https://app.com/pricing"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "checkoutUrl": "https://checkout.stripe.com/pay/cs_test_...",
+    "sessionId": "cs_test_...",
+    "subscriptionId": "sub_crovver_abc"
+  }
+}
+```
+</ResponseExample>

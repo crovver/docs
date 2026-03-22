@@ -1,0 +1,75 @@
+---
+title: Tenants
+description: The billing unit in Crovver — a workspace, user, or company that holds a subscription.
+---
+
+A **Tenant** is the billing entity in Crovver. It is the unit that subscribes to a plan and accumulates usage. Depending on your org type, a tenant maps to different things in your app.
+
+## Tenant vs User
+
+Crovver is **not** user-aware — it doesn't know about individual users inside a workspace. It only knows about the billing unit.
+
+| Org Type | Tenant represents | Example |
+|---|---|---|
+| B2B | A company, workspace, or team | "Acme Corp", "Engineering Team" |
+| D2C | An individual user | John's personal account |
+
+## External Tenant ID
+
+Every tenant has an `external_tenant_id` — the ID of the corresponding entity in **your** application. You set this when creating a tenant or initiating checkout.
+
+```json
+{
+  "external_tenant_id": "workspace_abc123",   // ID from your app
+  "name": "Acme Corp"
+}
+```
+
+Crovver uses this to look up tenants when your app makes API calls.
+
+## Tenant Owners
+
+A **Tenant Owner** is the person responsible for billing — the person whose card gets charged. For B2B tenants, this is typically the account admin who signed up.
+
+```json
+{
+  "external_user_id": "user_123",
+  "email": "admin@acme.com",
+  "name": "Jane Smith"
+}
+```
+
+## Creating Tenants
+
+For **B2B apps**, you explicitly create tenants (workspaces) and link users to them.
+
+For **D2C apps**, tenants are auto-created on first checkout — Crovver creates a tenant for each user automatically.
+
+<CodeGroup>
+```bash B2B — Create Tenant
+POST /api/public/tenants
+Authorization: Bearer sk_live_...
+
+{
+  "externalTenantId": "workspace_abc123",
+  "name": "Acme Corp",
+  "ownerExternalUserId": "user_123",
+  "ownerEmail": "admin@acme.com"
+}
+```
+
+```bash D2C — Auto-created on checkout
+POST /api/public/checkout
+Authorization: Bearer sk_live_...
+
+{
+  "requestingUserId": "user_123",
+  "planId": "plan_pro",
+  "provider": "stripe"
+}
+```
+</CodeGroup>
+
+## Tenant Status
+
+A tenant is considered **active** if it has at least one subscription with status `active` or `trialing`. Your frontend can check this via `useSubscription().isActive`.

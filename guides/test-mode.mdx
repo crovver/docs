@@ -1,0 +1,47 @@
+---
+title: Test Mode
+description: Test the full checkout flow without real charges.
+---
+
+Crovver's test mode routes checkout through test payment credentials so you can exercise the full subscription lifecycle without real money.
+
+## How Test Mode Works
+
+Test mode is determined per-plan, not per-environment. A plan with `test_mode: true` routes checkout through test credentials. This means you can have test and live plans running in the same Crovver instance simultaneously.
+
+## Setup
+
+**1. Connect test payment credentials**
+
+In the dashboard, go to **Settings → Payment Providers** and add a provider with test credentials (e.g., Stripe test secret key `sk_test_...`). Give it a name like `stripe-test`.
+
+**2. Create a test plan**
+
+Create a plan with `test_mode: true`. Crovver will automatically use the provider configured for test mode.
+
+**3. Use test API keys**
+
+Generate a `pk_test_...` public key and `sk_test_...` secret key from **Settings → API Keys**.
+
+## Stripe Test Cards
+
+| Card Number | Scenario |
+|---|---|
+| `4242 4242 4242 4242` | Successful payment |
+| `4000 0000 0000 0002` | Card declined |
+| `4000 0025 0000 3155` | Requires 3D Secure |
+| `4000 0000 0000 9995` | Insufficient funds |
+
+Use any future expiry date and any 3-digit CVC.
+
+## Local Development Checklist
+
+- [ ] Crovver API running on `localhost:3000`
+- [ ] Stripe CLI running: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
+- [ ] Test plan created with `test_mode: true`
+- [ ] `pk_test_...` key set in your frontend env
+- [ ] `sk_test_...` key set in your backend env
+
+<Note>
+  The Stripe CLI prints a webhook secret. Set it as `STRIPE_WEBHOOK_SECRET` in your Crovver `.env` for local webhook processing.
+</Note>

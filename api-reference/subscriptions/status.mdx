@@ -1,0 +1,102 @@
+---
+title: Get Subscription Status
+api: GET /api/public/subscriptions/status
+description: Get the current subscription status for a tenant.
+---
+
+Returns the active subscription, plan details, and tenant info for the given tenant.
+
+## Request
+
+<ParamField query="publicKey" type="string" required>
+  Your public key (`pk_live_...` or `pk_test_...`)
+</ParamField>
+
+<ParamField query="tenantId" type="string" required>
+  The external tenant ID from your application
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean" />
+
+<ResponseField name="data" type="object">
+  <Expandable>
+    <ResponseField name="active" type="boolean">Whether the subscription is active or trialing</ResponseField>
+    <ResponseField name="status" type="string">One of: `active`, `trialing`, `past_due`, `canceled`, `expired`, `none`</ResponseField>
+    <ResponseField name="tenant" type="object">
+      <Expandable>
+        <ResponseField name="id" type="string" />
+        <ResponseField name="name" type="string" />
+        <ResponseField name="isActive" type="boolean" />
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="subscription" type="object | null">
+      <Expandable>
+        <ResponseField name="id" type="string" />
+        <ResponseField name="status" type="string" />
+        <ResponseField name="trialEndsAt" type="string | null" />
+        <ResponseField name="currentPeriodStart" type="string" />
+        <ResponseField name="currentPeriodEnd" type="string" />
+        <ResponseField name="capacityUnits" type="number">Seat count (seat-based plans)</ResponseField>
+        <ResponseField name="usedCapacity" type="number">Active seat allocations</ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="plan" type="object | null">
+      <Expandable>
+        <ResponseField name="id" type="string" />
+        <ResponseField name="name" type="string" />
+        <ResponseField name="billingInterval" type="string" />
+        <ResponseField name="features" type="string[]">Feature keys included in this plan</ResponseField>
+        <ResponseField name="limits" type="object">Numeric usage limits</ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl "https://api.crovver.com/api/public/subscriptions/status?publicKey=pk_live_...&tenantId=workspace_123"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Active
+{
+  "success": true,
+  "data": {
+    "active": true,
+    "status": "active",
+    "tenant": { "id": "ten_abc", "name": "Acme Corp", "isActive": true },
+    "subscription": {
+      "id": "sub_xyz",
+      "status": "active",
+      "currentPeriodStart": "2025-01-01T00:00:00Z",
+      "currentPeriodEnd": "2025-02-01T00:00:00Z",
+      "capacityUnits": 15,
+      "usedCapacity": 12
+    },
+    "plan": {
+      "id": "plan_pro",
+      "name": "Pro",
+      "billingInterval": "monthly",
+      "features": ["advanced_analytics", "api_access"],
+      "limits": { "api_calls": 10000 }
+    }
+  }
+}
+```
+
+```json 200 No Subscription
+{
+  "success": true,
+  "data": {
+    "active": false,
+    "status": "none",
+    "tenant": { "id": "ten_abc", "name": "Acme Corp", "isActive": false },
+    "subscription": null,
+    "plan": null
+  }
+}
+```
+</ResponseExample>

@@ -1,0 +1,78 @@
+---
+title: Plans
+description: Pricing tiers with features, limits, and billing intervals.
+---
+
+A **Plan** defines what a tenant gets access to and how much they pay. Plans belong to a **Product**, which is a logical grouping (e.g., "Email Platform" or "Analytics Suite").
+
+## Plan Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Display name (e.g., "Pro", "Enterprise") |
+| `price_amount` | integer | Price in smallest currency unit (cents) |
+| `billing_interval` | enum | `monthly`, `yearly`, or `one-time` |
+| `trial_days` | integer | Free trial length. `0` means no trial. |
+| `features` | JSON | Boolean feature flags |
+| `limits` | JSON | Numeric usage limits |
+| `test_mode` | boolean | Routes to test payment credentials if `true` |
+
+## Features vs Limits
+
+**Features** are boolean gates — a tenant either has access or doesn't:
+
+```json
+{
+  "features": {
+    "advanced_analytics": true,
+    "custom_domain": true,
+    "api_access": false,
+    "sso": false
+  }
+}
+```
+
+**Limits** are numeric caps on usage:
+
+```json
+{
+  "limits": {
+    "api_calls": 10000,
+    "team_members": 5,
+    "storage_gb": 20
+  }
+}
+```
+
+## Seat-Based Plans
+
+For B2B products where pricing scales with team size, plans can be seat-based:
+
+| Field | Description |
+|---|---|
+| `is_seat_based` | Enables seat-based billing |
+| `base_price` | Fixed base fee (covers `included_seats`) |
+| `included_seats` | Seats included in the base price |
+| `per_seat_price` | Extra cost per seat beyond `included_seats` |
+| `min_seats` | Minimum seats that must be purchased |
+| `max_seats` | Maximum seats allowed (optional cap) |
+
+**Pricing formula:**
+
+```
+total = base_price + max(0, requested_seats - included_seats) × per_seat_price
+```
+
+**Example:** Base $50/month for 10 seats, $5/seat after that.
+- 8 seats → $50
+- 15 seats → $50 + (5 × $5) = $75
+
+## Test Mode
+
+Plans have a `test_mode` flag. When `true`, Crovver routes checkout through test payment credentials (e.g., Stripe test keys). This lets you test the full checkout flow without real charges.
+
+Use test cards like `4242 4242 4242 4242` for Stripe test mode.
+
+<Warning>
+  Never use a production plan for testing. Always create a separate test plan with `test_mode: true`.
+</Warning>

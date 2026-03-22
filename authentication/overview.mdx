@@ -1,0 +1,56 @@
+---
+title: Authentication Overview
+description: Three credential types for three caller types.
+---
+
+Crovver uses three different credential types depending on who is making the call.
+
+## Credential Types
+
+| Type | Header | Who uses it | Format |
+|---|---|---|---|
+| Public Key | `x-public-key` or `?publicKey=` | Browser / React SDK | `pk_live_...` |
+| API Key (Secret) | `Authorization: Bearer` | Your backend server | `sk_live_...` |
+| Service Key | `x-service-key` | Ecom portal / internal services | env var |
+
+## Which Key Should I Use?
+
+<AccordionGroup>
+  <Accordion title="I'm calling from the browser (React SDK)">
+    Use your **Public Key**. It's safe to expose in frontend code. It can only read data and initiate checkout — it cannot modify subscriptions.
+
+    ```tsx
+    <CrovverProvider config={{ publicKey: "pk_live_..." }}>
+    ```
+  </Accordion>
+
+  <Accordion title="I'm calling from my backend server">
+    Use your **Secret Key** (API Key) in the `Authorization` header. Keep this server-side only — never expose it in client code.
+
+    ```bash
+    Authorization: Bearer sk_live_...
+    ```
+  </Accordion>
+
+  <Accordion title="I'm the Crovver ecom portal">
+    Use the **Service Key** with an `orgId` query param. This is an internal credential for server-to-server calls between Crovver services.
+
+    ```bash
+    x-service-key: <CROVVER_SERVICE_KEY>
+    GET /api/public/subscriptions?orgId=org_123
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Test vs Live Keys
+
+Both public and secret keys come in test and live variants:
+
+| Prefix | Environment |
+|---|---|
+| `pk_live_`, `sk_live_` | Production — real payments |
+| `pk_test_`, `sk_test_` | Test — routed to test payment credentials |
+
+<Note>
+  Test keys route to payment providers configured with test credentials. Use Stripe test card `4242 4242 4242 4242` to simulate successful payments.
+</Note>

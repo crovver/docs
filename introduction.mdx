@@ -1,0 +1,64 @@
+---
+title: What is Crovver?
+description: Subscription infrastructure for SaaS — without building it yourself.
+---
+
+Crovver is a **subscription management layer** that sits between your SaaS application and your payment providers. It handles billing logic, subscription state, feature entitlements, seat tracking, and usage limits — so you don't have to.
+
+## Why Crovver?
+
+Building billing is slow, fragile, and a distraction from your core product. Crovver gives you:
+
+<CardGroup cols={2}>
+  <Card title="Payment Provider Agnostic" icon="credit-card">
+    Swap between Stripe, Khalti, eSewa, or others without changing your application code.
+  </Card>
+  <Card title="Entitlement Engine" icon="lock">
+    Gate features by plan in one line. No custom permission logic needed.
+  </Card>
+  <Card title="Seat-Based Billing" icon="users">
+    Built-in capacity tracking with proration on upgrades. Works for B2B workspaces out of the box.
+  </Card>
+  <Card title="Usage Limits" icon="chart-bar">
+    Track API calls, storage, messages — enforce limits without custom infra.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+Crovver exposes a set of APIs your app calls, a React SDK for the frontend, and a webhook receiver for payment provider events. Your app never talks to Stripe directly — Crovver does.
+
+```
+Your SaaS App  ──→  Crovver API  ──→  Stripe / Khalti / eSewa
+                         │
+                    React SDK (browser)
+```
+
+**Crovver never stores payment credentials.** All provider secrets are managed through a secrets manager (Infisical or Vault).
+
+## Key Primitives
+
+| Concept | Description |
+|---|---|
+| **Org** | Your company — the top-level entity in Crovver |
+| **Tenant** | A billing unit inside your app (a workspace, a user, a company) |
+| **Plan** | A pricing tier with features, limits, and a price |
+| **Subscription** | A tenant subscribed to a plan |
+| **Entitlement** | Whether a tenant can access a specific feature |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get your first subscription running in under 10 minutes.
+  </Card>
+  <Card title="Core Concepts" icon="book" href="/concepts/organizations">
+    Understand the data model before you integrate.
+  </Card>
+  <Card title="React SDK" icon="react" href="/react-sdk/installation">
+    Add paywalls and feature gates to your frontend.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/overview">
+    Full reference for every endpoint.
+  </Card>
+</CardGroup>

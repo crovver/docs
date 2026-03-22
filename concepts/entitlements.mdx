@@ -1,0 +1,92 @@
+---
+title: Entitlements
+description: Check if a tenant has access to a feature based on their active plan.
+---
+
+**Entitlements** are how Crovver determines whether a tenant can access a specific feature. Crovver checks the tenant's active subscription and looks up the feature in the plan's `features` map.
+
+## How It Works
+
+When you call `canAccess`:
+
+1. Crovver looks up the tenant's active subscription
+2. Fetches the associated plan
+3. Checks `plan.features[featureKey] === true`
+4. Returns `canAccess: true` or `false`
+
+No active subscription → `canAccess: false`.
+Subscription in `past_due` → `canAccess: false`.
+Subscription in `trialing` → `canAccess: true` (trial counts as active).
+
+## Checking Access — Frontend
+
+Use the `useFeatureAccess` hook:
+
+```tsx
+import { useFeatureAccess } from 'crovver-react';
+
+function ExportButton() {
+  const { hasAccess, redirectToUpgrade } = useFeatureAccess('data_export');
+
+  if (!hasAccess) {
+    return <button onClick={redirectToUpgrade}>Upgrade to Export</button>;
+  }
+
+  return <button onClick={exportData}>Export</button>;
+}
+```
+
+## Checking Access — API
+
+```bash
+GET /api/public/can-access?publicKey=pk_live_...&featureKey=data_export&requestingEntityId=workspace_123
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "canAccess": true,
+    "featureKey": "data_export",
+    "requestingEntityId": "workspace_123"
+  }
+}
+```
+
+## Blocking UI with FeatureGuard
+
+The `<FeatureGuard>` component handles the gate declaratively:
+
+```tsx
+import { FeatureGuard } from 'crovver-react';
+
+<FeatureGuard
+  featureKey="advanced_analytics"
+  fallback={<UpgradePrompt />}
+>
+  <AnalyticsDashboard />
+</FeatureGuard>
+```
+
+## Usage Limits
+
+Entitlements handle boolean feature access. For **numeric limits** (e.g., max API calls), use the usage endpoints:
+
+```bash
+POST /api/public/check-usage-limit
+{
+  "metricKey": "api_calls",
+  "requestingEntityId": "workspace_123"
+}
+```
+
+```json
+{
+  "data": {
+    "withinLimit": true,
+    "current": 4821,
+    "limit": 10000,
+    "percentUsed": 48.21
+  }
+}
+```

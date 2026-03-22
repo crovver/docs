@@ -1,0 +1,84 @@
+---
+title: useBillingRedirect
+description: Redirect users to checkout or the billing portal.
+---
+
+Handles redirects to the Crovver checkout flow and billing portal. Internally calls the Crovver API to generate a short-lived JWT, then redirects the user.
+
+## Usage
+
+```tsx
+import { useBillingRedirect } from 'crovver-react';
+
+function UpgradeButton() {
+  const { redirectToCheckout, isRedirecting } = useBillingRedirect();
+
+  return (
+    <button
+      onClick={() => redirectToCheckout()}
+      disabled={isRedirecting}
+    >
+      {isRedirecting ? 'Redirecting...' : 'Upgrade Plan'}
+    </button>
+  );
+}
+```
+
+## Return Value
+
+```typescript
+{
+  redirectToCheckout: (options?: CheckoutOptions) => Promise<void>;
+  redirectToPortal: () => Promise<void>;
+  isRedirecting: boolean;
+}
+```
+
+## `redirectToCheckout(options?)`
+
+Redirects the user to the Crovver pricing/checkout page. Internally:
+
+1. Calls `POST /api/public/auth/checkout-token` with the tenant's public key
+2. Receives a signed JWT token
+3. Redirects to `{ecomUrl}/pricing?token={jwt}`
+
+### Options
+
+```typescript
+{
+  requiredFeature?: string;   // Pre-selects a plan that includes this feature
+  requiredPlan?: string;      // Pre-selects a specific plan ID
+}
+```
+
+### Examples
+
+```tsx
+// Basic upgrade
+redirectToCheckout();
+
+// Upgrade prompted by a specific locked feature
+redirectToCheckout({ requiredFeature: 'advanced_analytics' });
+
+// Redirect to a specific plan
+redirectToCheckout({ requiredPlan: 'plan_enterprise' });
+```
+
+## `redirectToPortal()`
+
+Redirects the user to the billing portal to manage their subscription (view invoices, update payment method, cancel).
+
+1. Calls `POST /api/public/auth/portal-token`
+2. Redirects to `{ecomUrl}/portal?token={jwt}`
+
+```tsx
+function BillingSettings() {
+  const { redirectToPortal } = useBillingRedirect();
+
+  return (
+    <button onClick={() => redirectToPortal()}>
+      Manage Billing
+    </button>
+  );
+}
+```

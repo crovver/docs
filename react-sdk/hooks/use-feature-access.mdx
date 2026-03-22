@@ -1,0 +1,81 @@
+---
+title: useFeatureAccess
+description: Check if the current tenant has access to a specific feature.
+---
+
+Checks whether the tenant's active plan includes a given feature key.
+
+## Usage
+
+```tsx
+import { useFeatureAccess } from 'crovver-react';
+
+function ExportButton() {
+  const { hasAccess, isLoading, redirectToUpgrade } = useFeatureAccess('data_export');
+
+  if (isLoading) return null;
+
+  return hasAccess
+    ? <button onClick={exportData}>Export CSV</button>
+    : <button onClick={redirectToUpgrade}>Upgrade to Export</button>;
+}
+```
+
+## Parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `featureKey` | `string` | The feature key to check (must match a key in `plan.features`) |
+
+## Return Value
+
+```typescript
+{
+  hasAccess: boolean;     // true if the plan includes this feature
+  canAccess: boolean;     // alias for hasAccess
+  isLoading: boolean;
+  error: Error | null;
+  redirectToUpgrade: () => void;   // Calls redirectToCheckout() internally
+  refresh: () => Promise<void>;
+}
+```
+
+## How Access Is Determined
+
+Access is resolved from the subscription data already loaded by `CrovverProvider`:
+
+1. If no active subscription → `hasAccess: false`
+2. If active subscription but feature not in `plan.features` → `hasAccess: false`
+3. If `plan.features[featureKey] === true` → `hasAccess: true`
+
+This is a **local check** — no additional API call is made. The subscription data is fetched once by `CrovverProvider` on mount.
+
+## Examples
+
+### Disable a button instead of hiding it
+
+```tsx
+const { hasAccess } = useFeatureAccess('bulk_operations');
+
+<button disabled={!hasAccess} title={!hasAccess ? 'Upgrade to unlock' : undefined}>
+  Bulk Delete
+</button>
+```
+
+### Show an upgrade tooltip
+
+```tsx
+const { hasAccess, redirectToUpgrade } = useFeatureAccess('custom_domain');
+
+<Tooltip content={!hasAccess ? <span onClick={redirectToUpgrade}>Upgrade →</span> : null}>
+  <DomainInput disabled={!hasAccess} />
+</Tooltip>
+```
+
+### Check multiple features
+
+```tsx
+const analytics = useFeatureAccess('advanced_analytics');
+const exports = useFeatureAccess('data_export');
+const api = useFeatureAccess('api_access');
+```

@@ -1,0 +1,60 @@
+---
+title: Public Keys
+description: Safe-to-expose keys for frontend and React SDK usage.
+---
+
+Public keys are read-only credentials designed to be used in browser code. They identify your organization without granting write access.
+
+## Format
+
+```
+pk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   ← production
+pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   ← test mode
+```
+
+## Capabilities
+
+| Action | Allowed |
+|---|---|
+| Read subscription status | ✅ |
+| Check feature access | ✅ |
+| Initiate checkout (get a token) | ✅ |
+| Initiate portal redirect | ✅ |
+| Create or cancel subscriptions | ❌ |
+| Access other tenants' data | ❌ |
+
+## Usage
+
+### React SDK
+
+Pass your public key to `CrovverProvider`:
+
+```tsx
+<CrovverProvider
+  config={{
+    publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY,
+    tenantId: currentUser.id,
+  }}
+>
+```
+
+### Direct API Call
+
+Accepted as a query param or header:
+
+```bash
+# Query param
+GET /api/public/subscriptions/status?publicKey=pk_live_...&tenantId=workspace_123
+
+# Header
+GET /api/public/can-access?featureKey=export&requestingEntityId=workspace_123
+x-public-key: pk_live_...
+```
+
+## Generating Keys
+
+From the Crovver dashboard: **Settings → API Keys → Generate Public Key**.
+
+<Warning>
+  Even though public keys are safe to expose, rotate them if you suspect they've been compromised. All existing sessions using the old key will stop working immediately.
+</Warning>

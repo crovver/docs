@@ -1,0 +1,42 @@
+---
+title: List Tenants
+api: GET /api/public/tenants
+description: Get all tenants for an organization.
+---
+
+Returns all tenants associated with the organization.
+
+## Query Parameters
+
+<ParamField query="publicKey" type="string">
+  Your public key (alternative to Authorization header)
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **public key**.
+
+<RequestExample>
+```bash cURL
+curl "https://api.crovver.com/api/public/tenants" \
+  -H "Authorization: Bearer sk_live_..."
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": [
+    {
+      "id": "ten_crovver_xyz",
+      "externalTenantId": "workspace_abc123",
+      "name": "Acme Corp",
+      "slug": "acme-corp",
+      "isActive": true,
+      "createdAt": "2025-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
