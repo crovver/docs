@@ -1,0 +1,105 @@
+---
+title: useSubscription
+description: Read the current tenant's subscription status and plan.
+---
+
+Returns the current subscription state for the tenant passed to `CrovverProvider`.
+
+## Usage
+
+```tsx
+import { useSubscription } from 'crovver-react';
+
+function Dashboard() {
+  const { isActive, isLoading, plan, subscription } = useSubscription();
+
+  if (isLoading) return <Spinner />;
+  if (!isActive) return <UpgradePrompt />;
+
+  return (
+    <div>
+      <p>Plan: {plan?.name}</p>
+      <p>Renews: {new Date(subscription?.currentPeriodEnd).toLocaleDateString()}</p>
+    </div>
+  );
+}
+```
+
+## Return Value
+
+```typescript
+{
+  subscription: SubscriptionStatus | null;
+  isLoading: boolean;
+  error: Error | null;
+  isActive: boolean;                     // true if status is "active" or "trialing"
+  plan: PlanDetails | null;
+  tenant: TenantDetails | null;
+  subscriptionDetails: SubscriptionDetails | null;
+  refresh: () => Promise<void>;
+}
+```
+
+### `SubscriptionStatus`
+
+```typescript
+{
+  active: boolean;
+  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired' | 'none';
+  tenant: {
+    id: string;
+    name: string;
+    isActive: boolean;
+  };
+  subscription: {
+    id: string;
+    status: string;
+    trialEndsAt?: string;
+    currentPeriodStart?: string;
+    currentPeriodEnd?: string;
+    canceledAt?: string;
+    capacityUnits?: number;   // seat count (seat-based plans)
+    usedCapacity?: number;
+  } | null;
+  plan: {
+    id: string;
+    name: string;
+    billingInterval: string;
+    features: string[];
+    isSeatBased?: boolean;
+    limits: Record<string, number>;
+  } | null;
+}
+```
+
+## Examples
+
+### Show trial banner
+
+```tsx
+const { subscription } = useSubscription();
+const daysLeft = subscription?.subscription?.trialEndsAt
+  ? Math.ceil((new Date(subscription.subscription.trialEndsAt).getTime() - Date.now()) / 86400000)
+  : null;
+
+{daysLeft !== null && <Banner>Trial ends in {daysLeft} days</Banner>}
+```
+
+### Manually refresh after upgrade
+
+```tsx
+const { refresh } = useSubscription();
+
+async function onPaymentComplete() {
+  await refresh();  // Re-fetch from Crovver API
+}
+```
+
+### Gate entire pages
+
+```tsx
+const { isActive, isLoading } = useSubscription();
+
+if (isLoading) return <LoadingPage />;
+if (!isActive) redirect('/pricing');
+```

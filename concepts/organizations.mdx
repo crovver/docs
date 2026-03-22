@@ -1,0 +1,50 @@
+---
+title: Organizations
+description: The top-level entity in Crovver representing your company.
+---
+
+An **Organization** (Org) is the account you create when you sign up for Crovver. It represents your company and owns everything — API keys, plans, products, and your customers' subscriptions.
+
+## Org Types
+
+When creating an org, you choose a type that determines how your customers are structured:
+
+<AccordionGroup>
+  <Accordion title="B2B">
+    Your customers are companies, teams, or workspaces. Each customer can have multiple members. A billing unit is a **workspace** (tenant), not an individual user.
+
+    **Example:** A project management tool where "Acme Corp" is the billing unit, and Acme's employees are members.
+  </Accordion>
+  <Accordion title="D2C (Direct to Consumer)">
+    Your customers are individuals. Each user is their own billing unit.
+
+    **Example:** A personal productivity app where each user subscribes independently.
+  </Accordion>
+</AccordionGroup>
+
+## The Platform Org
+
+Crovver itself is a special **platform org** — the one org that manages Crovver's own subscriptions. This is how Crovver dogfoods itself. Only one platform org can exist per Crovver instance.
+
+## What Belongs to an Org
+
+```
+Org
+├── Products & Plans       ← What you're selling
+├── Payment Providers      ← Stripe, Khalti, eSewa configs
+├── API Keys               ← Public + secret keys for SDK/backend
+├── Admins                 ← Dashboard users
+└── Tenants                ← Your customers
+    └── Subscriptions      ← What your customers are paying for
+```
+
+## API Keys
+
+Every org gets two types of keys:
+
+| Key | Prefix | Use |
+|---|---|---|
+| Public Key | `pk_live_` / `pk_test_` | Frontend (React SDK) |
+| Secret Key | `sk_live_` / `sk_test_` | Backend API calls |
+
+Keys with the `_test_` prefix route to test-mode payment providers.

@@ -1,0 +1,56 @@
+---
+title: Record Usage
+api: POST /api/public/record-usage
+description: Track a usage event against a tenant's metric.
+---
+
+Records a usage event for a tenant. Crovver accumulates these events and checks them against the plan's `limits` when `check-usage-limit` is called.
+
+## Request Body
+
+<ParamField body="requestingEntityId" type="string" required>
+  The external tenant ID
+</ParamField>
+
+<ParamField body="metricKey" type="string" required>
+  The metric to record (must match a key in `plan.limits`)
+</ParamField>
+
+<ParamField body="quantity" type="number">
+  Amount to add. Defaults to `1`.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Optional context (e.g., which user triggered the event)
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.crovver.com/api/public/record-usage" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestingEntityId": "workspace_123",
+    "metricKey": "api_calls",
+    "quantity": 1,
+    "metadata": { "endpoint": "/api/export", "userId": "user_456" }
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "recorded": true,
+    "metricKey": "api_calls",
+    "quantity": 1
+  }
+}
+```
+</ResponseExample>

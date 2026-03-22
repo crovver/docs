@@ -1,0 +1,51 @@
+---
+title: FeatureGuard
+description: Conditionally render content based on access to a specific feature.
+---
+
+`<FeatureGuard>` checks a feature key against the tenant's plan and renders either the protected content or a fallback.
+
+## Usage
+
+```tsx
+import { FeatureGuard } from 'crovver-react';
+
+<FeatureGuard featureKey="advanced_analytics" fallback={<UpgradePrompt />}>
+  <AnalyticsDashboard />
+</FeatureGuard>
+```
+
+## Props
+
+| Prop | Type | Required | Description |
+|---|---|---|---|
+| `featureKey` | `string` | ✅ | Feature to check against the tenant's plan |
+| `children` | `ReactNode` | ✅ | Rendered when access is granted |
+| `fallback` | `ReactNode` | | Rendered when access is denied |
+| `loadingFallback` | `ReactNode` | | Rendered while checking |
+
+## Fallback with Upgrade CTA
+
+```tsx
+import { FeatureGuard, useBillingRedirect } from 'crovver-react';
+
+function UpgradePrompt() {
+  const { redirectToCheckout } = useBillingRedirect();
+  return (
+    <div>
+      <p>This feature requires a higher plan.</p>
+      <button onClick={() => redirectToCheckout({ requiredFeature: 'custom_domain' })}>
+        Upgrade
+      </button>
+    </div>
+  );
+}
+
+<FeatureGuard featureKey="custom_domain" fallback={<UpgradePrompt />}>
+  <DomainSettings />
+</FeatureGuard>
+```
+
+## vs `useFeatureAccess`
+
+Use `<FeatureGuard>` for **declarative** JSX gating. Use `useFeatureAccess` when you need to control behavior imperatively (e.g., disable a button, redirect programmatically).

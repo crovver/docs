@@ -1,0 +1,65 @@
+---
+title: API Reference
+description: Complete reference for the Crovver API.
+---
+
+## Base URL
+
+```
+https://api.crovver.com
+```
+
+For self-hosted instances, replace with your own URL.
+
+## Authentication
+
+All endpoints require one of three credentials. See [Authentication](/authentication/overview) for details.
+
+```bash
+# Public key (browser/SDK)
+x-public-key: pk_live_...
+
+# Secret key (backend)
+Authorization: Bearer sk_live_...
+
+# Service key (internal)
+x-service-key: <value>
+```
+
+## Response Format
+
+All responses follow this envelope:
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "error": null,
+  "meta": { ... }
+}
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "message": "Human-readable error message",
+    "code": "ERROR_CODE"
+  }
+}
+```
+
+## Common Error Codes
+
+| Code | HTTP | Description |
+|---|---|---|
+| `MISSING_PUBLIC_KEY` | 400 | `publicKey` query param not provided |
+| `INVALID_PUBLIC_KEY` | 401 | Public key not found or inactive |
+| `INVALID_SERVICE_KEY` | 401 | Service key mismatch |
+| `TENANT_NOT_FOUND` | 404 | No tenant with the given external ID |
+| `NO_ACTIVE_SUBSCRIPTION` | 404 | Tenant has no active subscription |
+| `MISSING_REQUIRED_FIELDS` | 400 | Required body/query params missing |
+

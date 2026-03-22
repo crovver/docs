@@ -1,0 +1,61 @@
+---
+title: Check Usage Limit
+api: POST /api/public/check-usage-limit
+description: Check if a tenant is within their plan's usage limits.
+---
+
+Returns the tenant's current usage for a metric and whether they're within the limit defined by their plan.
+
+## Request Body
+
+<ParamField body="requestingEntityId" type="string" required>
+  The external tenant ID
+</ParamField>
+
+<ParamField body="metricKey" type="string" required>
+  The metric to check (e.g., `api_calls`, `storage_gb`)
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **public key** (`x-public-key`).
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.crovver.com/api/public/check-usage-limit" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestingEntityId": "workspace_123",
+    "metricKey": "api_calls"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Within Limit
+{
+  "success": true,
+  "data": {
+    "withinLimit": true,
+    "current": 4821,
+    "limit": 10000,
+    "percentUsed": 48.21,
+    "metricKey": "api_calls"
+  }
+}
+```
+
+```json 200 Over Limit
+{
+  "success": true,
+  "data": {
+    "withinLimit": false,
+    "current": 10203,
+    "limit": 10000,
+    "percentUsed": 102.03,
+    "metricKey": "api_calls"
+  }
+}
+```
+</ResponseExample>

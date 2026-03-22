@@ -1,0 +1,59 @@
+---
+title: API Keys (Secret Keys)
+description: Server-side credentials for backend API calls.
+---
+
+Secret keys grant full programmatic access to your organization's data. They must be kept server-side and never exposed in client code.
+
+## Format
+
+```
+sk_live_<your_key>   ← production
+sk_test_<your_key>   ← test mode
+```
+
+## Usage
+
+Pass the key as a Bearer token in the `Authorization` header:
+
+```bash
+POST /api/public/checkout
+Authorization: Bearer sk_live_...
+Content-Type: application/json
+
+{
+  "requestingUserId": "user_123",
+  "planId": "plan_pro",
+  "provider": "stripe"
+}
+```
+
+## Capabilities
+
+Secret keys can do everything — read and write:
+
+- Create checkout sessions
+- Create and cancel subscriptions
+- Read subscription status for any tenant
+- Manage seat allocations
+- Record usage events
+
+## Security
+
+<Warning>
+  Never put a secret key in client-side code, environment variables prefixed
+  with `NEXT_PUBLIC_`, or any file that gets bundled to the browser.
+</Warning>
+
+Store it in a server-side environment variable:
+
+```bash
+# .env (server-only)
+CROVVER_SECRET_KEY=sk_live_...
+```
+
+## Generating Keys
+
+From the Crovver dashboard: **Settings → API Keys → Generate Secret Key**.
+
+Keys are only shown once at creation — store them securely immediately. If lost, generate a new one and rotate the old one.

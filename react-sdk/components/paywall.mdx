@@ -1,0 +1,47 @@
+---
+title: Paywall
+description: Block content behind an active subscription requirement.
+---
+
+`<Paywall>` renders its children only when the tenant has an active subscription. Otherwise it shows a customizable upgrade prompt.
+
+## Usage
+
+```tsx
+import { Paywall } from 'crovver-react';
+
+<Paywall>
+  <PremiumDashboard />
+</Paywall>
+```
+
+## Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `children` | `ReactNode` | — | Content shown when subscribed |
+| `fallback` | `ReactNode` | Built-in upgrade prompt | Content shown when not subscribed |
+| `loadingFallback` | `ReactNode` | `null` | Content shown while loading |
+
+## Custom Fallback
+
+```tsx
+<Paywall
+  fallback={
+    <div className="upgrade-banner">
+      <h2>Subscribe to access this feature</h2>
+      <UpgradeButton />
+    </div>
+  }
+>
+  <AnalyticsDashboard />
+</Paywall>
+```
+
+## Behavior
+
+| Subscription Status | What renders |
+|---|---|
+| Loading | `loadingFallback` |
+| `active` or `trialing` | `children` |
+| `past_due`, `canceled`, `expired`, `none` | `fallback` |

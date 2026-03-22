@@ -1,0 +1,78 @@
+---
+title: CrovverProvider
+description: Root context provider that powers all SDK hooks and components.
+---
+
+`CrovverProvider` initializes the SDK, fetches the tenant's subscription status, and makes it available to all child components via context.
+
+## Props
+
+```tsx
+<CrovverProvider config={CrovverConfig}>
+  {children}
+</CrovverProvider>
+```
+
+### `config`
+
+| Prop | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `publicKey` | `string` | ✅ | — | Your public API key (`pk_live_...`) |
+| `tenantId` | `string` | ✅ | — | The current user/workspace ID from your app |
+| `apiUrl` | `string` | | SDK default | Override the Crovver API base URL |
+| `ecomUrl` | `string` | | SDK default | Override the ecom/pricing app URL |
+| `pollInterval` | `number` | | `0` | Auto-refresh interval in ms. `0` = disabled |
+| `debug` | `boolean` | | `false` | Log SDK activity to the console |
+| `onUnauthenticated` | `() => void` | | — | Called when subscription is inactive |
+
+## Example
+
+```tsx
+<CrovverProvider
+  config={{
+    publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
+    tenantId: session.user.workspaceId,
+    pollInterval: 30000,       // Refresh every 30 seconds
+    debug: process.env.NODE_ENV === 'development',
+    onUnauthenticated: () => router.push('/pricing'),
+  }}
+>
+  <App />
+</CrovverProvider>
+```
+
+## Dynamic `tenantId`
+
+If your user can switch between workspaces, you can change `tenantId` dynamically. The provider will re-fetch the subscription for the new tenant when the value changes:
+
+```tsx
+<CrovverProvider
+  config={{
+    publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
+    tenantId: activeWorkspace.id,   // Changes when user switches workspace
+  }}
+>
+```
+
+## Server Components (Next.js)
+
+`CrovverProvider` is a client component. If your root layout is a server component, wrap the provider in a `"use client"` file:
+
+```tsx
+// components/CrovverClientProvider.tsx
+"use client";
+import { CrovverProvider } from 'crovver-react';
+
+export function CrovverClientProvider({ tenantId, children }) {
+  return (
+    <CrovverProvider
+      config={{
+        publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
+        tenantId,
+      }}
+    >
+      {children}
+    </CrovverProvider>
+  );
+}
+```

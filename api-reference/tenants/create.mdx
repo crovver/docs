@@ -1,0 +1,63 @@
+---
+title: Create Tenant
+api: POST /api/public/tenants
+description: Create a new B2B tenant (workspace).
+---
+
+Creates a new billing tenant in Crovver. For **B2B orgs**, call this when a new workspace/organization is created in your app. For **D2C**, tenants are auto-created on first checkout.
+
+## Request Body
+
+<ParamField body="externalTenantId" type="string" required>
+  The workspace/org ID from your application
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Display name for the tenant
+</ParamField>
+
+<ParamField body="ownerExternalUserId" type="string" required>
+  The external user ID of the billing owner
+</ParamField>
+
+<ParamField body="ownerEmail" type="string" required>
+  Email address of the billing owner
+</ParamField>
+
+<ParamField body="ownerName" type="string">
+  Display name of the billing owner
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.crovver.com/api/public/tenants" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalTenantId": "workspace_abc123",
+    "name": "Acme Corp",
+    "ownerExternalUserId": "user_123",
+    "ownerEmail": "admin@acme.com",
+    "ownerName": "Jane Smith"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "id": "ten_crovver_xyz",
+    "externalTenantId": "workspace_abc123",
+    "name": "Acme Corp",
+    "slug": "acme-corp",
+    "createdAt": "2025-01-01T00:00:00Z"
+  }
+}
+```
+</ResponseExample>

@@ -1,0 +1,64 @@
+---
+title: Seat-Based Billing
+description: Set up and manage per-seat pricing for B2B SaaS.
+---
+
+Seat-based billing lets you charge customers based on the number of active users in their workspace. Crovver handles proration on seat upgrades automatically.
+
+## 1. Create a Seat-Based Plan
+
+In the dashboard or via API:
+
+```json
+{
+  "name": "Business",
+  "is_seat_based": true,
+  "base_price": 5000,         // $50 base price
+  "included_seats": 10,       // Covers 10 seats
+  "per_seat_price": 500,      // $5 per additional seat
+  "min_seats": 5,
+  "max_seats": 500,
+  "billing_interval": "monthly"
+}
+```
+
+**Pricing examples:**
+- 8 seats → $50 (within included seats)
+- 15 seats → $50 + (5 × $5) = $75
+- 25 seats → $50 + (15 × $5) = $125
+
+## 2. Checkout with Seat Count
+
+Pass `totalCapacityUnits` when creating the checkout session:
+
+```bash
+POST /api/public/checkout
+Authorization: Bearer sk_live_...
+
+{
+  "requestingTenantId": "workspace_123",
+  "planId": "plan_business",
+  "provider": "stripe",
+  "totalCapacityUnits": 20,
+  "successUrl": "https://app.com/welcome",
+  "cancelUrl": "https://app.com/pricing"
+}
+```
+
+## 3. Upgrade Seat Count with Proration
+
+When a workspace needs more seats mid-billing cycle:
+
+```bash
+POST /api/public/capacity/proration-checkout
+Authorization: Bearer sk_live_...
+
+{
+  "requestingTenantId": "workspace_123",
+  "newCapacity": 30,
+  "successUrl": "https://app.com/settings?upgraded=1",
+  "cancelUrl": "https://app.com/settings/seats"
+}
+```
+
+Crovver calculates the prorated charge for the remaining days in the billing period and returns a Stripe checkout URL. After payment, the subscription's `capacityUnits` updates automatically.

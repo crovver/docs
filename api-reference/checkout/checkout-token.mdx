@@ -1,0 +1,73 @@
+---
+title: Create Checkout Token
+api: POST /api/public/auth/checkout-token
+description: Mint a short-lived JWT to initiate the checkout redirect flow.
+---
+
+Creates a signed JWT that the ecom/pricing app uses to identify the tenant during checkout. The React SDK calls this automatically when you invoke `redirectToCheckout()`.
+
+## Request Headers
+
+<ParamField header="x-public-key" type="string" required>
+  Your public key (`pk_live_...`)
+</ParamField>
+
+## Request Body
+
+<ParamField body="externalTenantId" type="string" required>
+  The tenant ID from your application
+</ParamField>
+
+<ParamField body="returnUrl" type="string" required>
+  URL to return to after checkout completes
+</ParamField>
+
+<ParamField body="requiredFeature" type="string">
+  Pre-selects a plan that includes this feature on the pricing page
+</ParamField>
+
+<ParamField body="requiredPlan" type="string">
+  Pre-selects a specific plan ID on the pricing page
+</ParamField>
+
+## Response
+
+<ResponseField name="data.token" type="string">
+  Signed JWT (valid for 10 minutes)
+</ResponseField>
+
+<ResponseField name="data.expiresAt" type="string">
+  ISO 8601 expiry timestamp
+</ResponseField>
+
+<ResponseField name="meta.checkoutUrl" type="string">
+  The full ecom URL with token appended — you can use this directly
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.crovver.com/api/public/auth/checkout-token" \
+  -H "x-public-key: pk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalTenantId": "workspace_123",
+    "returnUrl": "https://app.com/dashboard"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiJ9...",
+    "expiresAt": "2025-01-01T00:10:00Z"
+  },
+  "meta": {
+    "checkoutUrl": "https://ecom.crovver.com/pricing?token=eyJhbGci...",
+    "expiresIn": 600
+  }
+}
+```
+</ResponseExample>

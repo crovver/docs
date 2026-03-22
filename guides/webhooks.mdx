@@ -1,0 +1,42 @@
+---
+title: Webhooks
+description: How Crovver handles payment provider events to keep subscriptions in sync.
+---
+
+Crovver automatically registers and handles webhook events from your payment provider. When you connect a provider in the Crovver dashboard, the webhook endpoint is registered for you — no manual setup in Stripe required.
+
+## How It Works
+
+When you configure a payment provider in **Settings → Payment Providers**, Crovver registers its webhook endpoint with that provider automatically. All subscription lifecycle events flow through Crovver's webhook handler, which keeps your subscription states up to date.
+
+## Events Processed
+
+| Event | What Crovver Does |
+|---|---|
+| `checkout.session.completed` | Activates subscription (`pending` → `active` or `trialing`) |
+| `customer.subscription.created` | Links provider subscription ID to Crovver record |
+| `customer.subscription.updated` | Handles trial end, plan changes |
+| `customer.subscription.deleted` | Cancels subscription |
+| `invoice.payment_succeeded` | Renews billing period |
+| `invoice.payment_failed` | Moves subscription to `past_due` |
+
+## Local Development
+
+To test the full webhook flow locally, use the Stripe CLI to forward events to your running Crovver instance:
+
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+```
+
+The CLI prints a temporary webhook secret — set it as `STRIPE_WEBHOOK_SECRET` in your Crovver `.env` for local testing.
+
+## Idempotency
+
+Crovver deduplicates webhook events using the provider event ID. Replaying events is safe.
+
+## Testing the Full Flow
+
+1. Start your Crovver API locally
+2. Run `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
+3. Use a test plan and complete checkout with card `4242 4242 4242 4242`
+4. Watch the subscription status activate in your app

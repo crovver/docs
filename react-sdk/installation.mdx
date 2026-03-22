@@ -1,0 +1,83 @@
+---
+title: Installation
+description: Add the Crovver React SDK to your app.
+---
+
+## Install
+
+```bash
+npm install crovver-react
+# or
+pnpm add crovver-react
+# or
+yarn add crovver-react
+```
+
+**Peer dependencies:** React 18+ or React 19+.
+
+## Setup
+
+Wrap your application with `CrovverProvider`. In a Next.js app this goes in your root layout:
+
+```tsx
+// app/layout.tsx
+import { CrovverProvider } from 'crovver-react';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html>
+      <body>
+        <CrovverProvider
+          config={{
+            publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
+            tenantId: 'CURRENT_USER_OR_WORKSPACE_ID',
+          }}
+        >
+          {children}
+        </CrovverProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+<Note>
+  The `tenantId` should be the ID of the currently authenticated user or workspace from **your** application — the same ID you use as `externalTenantId` when creating tenants or initiating checkout.
+</Note>
+
+## Environment Variables
+
+```bash
+# .env.local
+NEXT_PUBLIC_CROVVER_PUBLIC_KEY=pk_live_...
+```
+
+## What's Exported
+
+```tsx
+// Provider
+import { CrovverProvider } from 'crovver-react';
+
+// Hooks
+import { useSubscription, useFeatureAccess, useBillingRedirect } from 'crovver-react';
+
+// Components
+import { Paywall, FeatureGuard, SubscriptionBadge } from 'crovver-react';
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CrovverProvider" href="/react-sdk/crovver-provider">
+    Full config reference for the provider.
+  </Card>
+  <Card title="useSubscription" href="/react-sdk/hooks/use-subscription">
+    Read subscription status and plan data.
+  </Card>
+  <Card title="useFeatureAccess" href="/react-sdk/hooks/use-feature-access">
+    Gate features by plan.
+  </Card>
+  <Card title="useBillingRedirect" href="/react-sdk/hooks/use-billing-redirect">
+    Trigger checkout and portal redirects.
+  </Card>
+</CardGroup>
