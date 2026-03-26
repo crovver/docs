@@ -1,0 +1,132 @@
+---
+title: Node.js SDK
+description: Integrate Crovver into your Node.js backend.
+---
+
+## Installation
+
+```bash
+npm install crovver-node
+# or
+pnpm add crovver-node
+# or
+yarn add crovver-node
+```
+
+**Requirements:** Node.js 18+. TypeScript is optional but fully supported.
+
+## Initialize the Client
+
+```typescript
+import { CrovverClient } from "crovver-node";
+
+const crovver = new CrovverClient({
+  apiKey: process.env.CROVVER_SECRET_KEY!,
+});
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | string | required | Your secret API key (`sk_live_...`) |
+| `timeout` | number | `30000` | Request timeout in milliseconds |
+| `maxRetries` | number | `3` | Retry attempts for server errors |
+| `debug` | boolean | `false` | Log requests and responses |
+| `logger` | function | `undefined` | Custom logger: `(message, data?) => void` |
+
+## Tenant Management
+
+```typescript
+// Create a tenant (B2B: workspace or user)
+const tenant = await crovver.createTenant({
+  externalTenantId: "workspace_abc123",
+  name: "Acme Corp",
+});
+
+// Retrieve a tenant
+const tenant = await crovver.getTenant("workspace_abc123");
+```
+
+## Plans
+
+```typescript
+const { plans } = await crovver.getPlans();
+
+for (const plan of plans) {
+  console.log(`${plan.name} - $${plan.priceAmount / 100}/mo`);
+}
+```
+
+## Subscriptions
+
+```typescript
+const { subscriptions } = await crovver.getSubscriptions("workspace_abc123");
+
+// status: active | trialing | canceled | past_due | ...
+console.log(subscriptions[0].status);
+
+// Cancel a subscription
+await crovver.cancelSubscription(subscriptionId, "User requested cancellation");
+```
+
+## Feature Entitlements
+
+```typescript
+const canAccess = await crovver.canAccess("workspace_abc123", "advanced_analytics");
+
+if (canAccess) {
+  // serve the feature
+}
+```
+
+## Usage Tracking
+
+```typescript
+// Record usage
+await crovver.recordUsage("workspace_abc123", "api_calls", 1);
+
+// Check against limit
+const limit = await crovver.checkUsageLimit("workspace_abc123", "api_calls");
+console.log(`${limit.used} / ${limit.limit}`);
+```
+
+## Checkout
+
+```typescript
+const session = await crovver.createCheckoutSession({
+  externalTenantId: "workspace_abc123",
+  planId: "plan_pro",
+  successUrl: "https://yourapp.com/billing/success",
+  cancelUrl: "https://yourapp.com/billing/cancel",
+});
+
+// Redirect user to session.checkoutUrl
+```
+
+## Invoices
+
+```typescript
+const { invoices } = await crovver.getInvoices("workspace_abc123");
+```
+
+## Error Handling
+
+```typescript
+import { CrovverClient, CrovverError } from "crovver-node";
+
+try {
+  const canAccess = await crovver.canAccess("workspace_abc123", "advanced_analytics");
+} catch (error) {
+  if (error instanceof CrovverError) {
+    error.message;      // Human-readable message
+    error.statusCode;   // HTTP status code
+    error.code;         // API error code string
+    error.isRetryable;  // Whether the SDK already retried
+  }
+}
+```
+
+<Note>
+  5xx errors, 429, and 408 responses are retried automatically with exponential backoff. Checkout endpoints are **never** retried to prevent duplicate charges.
+</Note>

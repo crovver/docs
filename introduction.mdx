@@ -11,13 +11,15 @@ Building billing is slow, fragile, and a distraction from your core product. Cro
 
 <CardGroup cols={2}>
   <Card title="Payment Provider Agnostic" icon="credit-card">
-    Swap between Stripe, Khalti, eSewa, or others without changing your application code.
+    Swap between Stripe, Khalti, eSewa, or others without changing your
+    application code.
   </Card>
   <Card title="Entitlement Engine" icon="lock">
     Gate features by plan in one line. No custom permission logic needed.
   </Card>
   <Card title="Seat-Based Billing" icon="users">
-    Built-in capacity tracking with proration on upgrades. Works for B2B workspaces out of the box.
+    Built-in capacity tracking with proration on upgrades. Works for B2B
+    workspaces out of the box.
   </Card>
   <Card title="Usage Limits" icon="chart-bar">
     Track API calls, storage, messages — enforce limits without custom infra.
@@ -28,23 +30,24 @@ Building billing is slow, fragile, and a distraction from your core product. Cro
 
 Crovver exposes a set of APIs your app calls, a React SDK for the frontend, and a webhook receiver for payment provider events. Your app never talks to Stripe directly — Crovver does.
 
-```
-Your SaaS App  ──→  Crovver API  ──→  Stripe / Khalti / eSewa
-                         │
-                    React SDK (browser)
+```mermaid
+flowchart LR
+    App["Your SaaS App"] --> API["Crovver API"]
+    API --> Provider["Stripe / Khalti / eSewa"]
+    SDK["React SDK (browser)"] --> API
 ```
 
 **Crovver never stores payment credentials.** All provider secrets are managed through a secrets manager (Infisical or Vault).
 
 ## Key Primitives
 
-| Concept | Description |
-|---|---|
-| **Org** | Your company — the top-level entity in Crovver |
-| **Tenant** | A billing unit inside your app (a workspace, a user, a company) |
-| **Plan** | A pricing tier with features, limits, and a price |
-| **Subscription** | A tenant subscribed to a plan |
-| **Entitlement** | Whether a tenant can access a specific feature |
+| Concept          | Description                                                     |
+| ---------------- | --------------------------------------------------------------- |
+| **Org**          | Your company — the top-level entity in Crovver                  |
+| **Tenant**       | A billing unit inside your app (a workspace, a user, a company) |
+| **Plan**         | A pricing tier with features, limits, and a price               |
+| **Subscription** | A tenant subscribed to a plan                                   |
+| **Entitlement**  | Whether a tenant can access a specific feature                  |
 
 ## Next Steps
 

@@ -1,16 +1,19 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
+  "theme": "maple",
   "name": "Crovver",
-  "colors": {
-    "primary": "#6366F1",
-    "light": "#818CF8",
-    "dark": "#4F46E5"
-  },
-  "favicon": "/favicon.svg",
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.ico",
+  "icons": {
+    "library": "lucide"
+  },
+  "colors": {
+    "primary": "#3B7573",
+    "light": "#5A9997",
+    "dark": "#2A5755"
   },
   "navbar": {
     "links": [
@@ -32,13 +35,12 @@
         "groups": [
           {
             "group": "Overview",
-            "pages": [
-              "introduction",
-              "quickstart"
-            ]
+            "icon": "book-open",
+            "pages": ["introduction", "quickstart"]
           },
           {
             "group": "Core Concepts",
+            "icon": "blocks",
             "pages": [
               "concepts/organizations",
               "concepts/tenants",
@@ -49,6 +51,7 @@
           },
           {
             "group": "Authentication",
+            "icon": "shield",
             "pages": [
               "authentication/overview",
               "authentication/public-keys",
@@ -56,30 +59,48 @@
             ]
           },
           {
-            "group": "React SDK",
+            "group": "SDKs",
+            "icon": "code",
             "pages": [
-              "react-sdk/installation",
-              "react-sdk/crovver-provider",
               {
-                "group": "Hooks",
+                "group": "React SDK",
+                "icon": "atom",
                 "pages": [
-                  "react-sdk/hooks/use-subscription",
-                  "react-sdk/hooks/use-feature-access",
-                  "react-sdk/hooks/use-billing-redirect"
+                  "react-sdk/installation",
+                  "react-sdk/crovver-provider",
+                  {
+                    "group": "Hooks",
+                    "pages": [
+                      "react-sdk/hooks/use-subscription",
+                      "react-sdk/hooks/use-feature-access",
+                      "react-sdk/hooks/use-billing-redirect"
+                    ]
+                  },
+                  {
+                    "group": "Components",
+                    "pages": [
+                      "react-sdk/components/paywall",
+                      "react-sdk/components/feature-guard",
+                      "react-sdk/components/subscription-badge"
+                    ]
+                  }
                 ]
               },
               {
-                "group": "Components",
-                "pages": [
-                  "react-sdk/components/paywall",
-                  "react-sdk/components/feature-guard",
-                  "react-sdk/components/subscription-badge"
-                ]
+                "group": "PHP SDK",
+                "icon": "terminal",
+                "pages": ["php-sdk/installation"]
+              },
+              {
+                "group": "Node.js SDK",
+                "icon": "zap",
+                "pages": ["node-sdk/installation"]
               }
             ]
           },
           {
             "group": "Guides",
+            "icon": "map",
             "pages": [
               "guides/checkout-flow",
               "guides/seat-based-billing",
@@ -93,13 +114,13 @@
         "tab": "API Reference",
         "groups": [
           {
-            "group": "API Reference",
-            "pages": [
-              "api-reference/overview"
-            ]
+            "group": "Overview",
+            "icon": "file-code",
+            "pages": ["api-reference/overview"]
           },
           {
             "group": "Subscriptions",
+            "icon": "credit-card",
             "pages": [
               "api-reference/subscriptions/status",
               "api-reference/subscriptions/cancel"
@@ -107,6 +128,7 @@
           },
           {
             "group": "Checkout",
+            "icon": "shopping-cart",
             "pages": [
               "api-reference/checkout/create-session",
               "api-reference/checkout/checkout-token",
@@ -115,6 +137,7 @@
           },
           {
             "group": "Features & Usage",
+            "icon": "bar-chart-2",
             "pages": [
               "api-reference/features/can-access",
               "api-reference/usage/record",
@@ -123,12 +146,12 @@
           },
           {
             "group": "Plans",
-            "pages": [
-              "api-reference/plans/list"
-            ]
+            "icon": "list",
+            "pages": ["api-reference/plans/list"]
           },
           {
             "group": "Tenants",
+            "icon": "users",
             "pages": [
               "api-reference/tenants/create",
               "api-reference/tenants/list"

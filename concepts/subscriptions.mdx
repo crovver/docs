@@ -18,9 +18,11 @@ A **Subscription** is the record that links a tenant to a plan. It tracks billin
 
 ## Status Transitions
 
-```
-pending ──→ trialing ──→ active ──→ past_due ──→ canceled
-         └─────────────→ active                └─→ expired
+```mermaid
+flowchart LR
+    pending --> trialing --> active --> past_due --> canceled
+    pending --> active
+    past_due --> expired
 ```
 
 Transitions are triggered by Stripe webhook events:

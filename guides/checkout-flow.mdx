@@ -7,39 +7,17 @@ This guide explains what happens from the moment a user clicks "Upgrade" to when
 
 ## Flow Overview
 
-```
-User clicks Upgrade
-      │
-      ▼
-SDK calls POST /api/public/auth/checkout-token
-      │  (publicKey + tenantId)
-      │
-      ▼
-Crovver returns a signed JWT
-      │
-      ▼
-Browser redirects to → {ecomUrl}/pricing?token={jwt}
-      │
-      ▼
-Ecom app validates token, fetches plans
-User selects a plan
-      │
-      ▼
-Ecom calls POST /api/public/checkout
-      │
-      ▼
-Crovver creates Stripe checkout session
-Browser redirects to → Stripe hosted checkout
-      │
-      ▼
-User enters card details
-      │
-      ▼
-Stripe fires webhook → POST /api/webhooks/stripe
-Crovver activates subscription
-      │
-      ▼
-useSubscription() returns isActive: true ✅
+```mermaid
+flowchart TD
+    A["User clicks Upgrade"] --> B["SDK calls POST /api/public/auth/checkout-token\n(publicKey + tenantId)"]
+    B --> C["Crovver returns a signed JWT"]
+    C --> D["Browser redirects to {ecomUrl}/pricing?token={jwt}"]
+    D --> E["Ecom app validates token, fetches plans\nUser selects a plan"]
+    E --> F["Ecom calls POST /api/public/checkout"]
+    F --> G["Crovver creates Stripe checkout session\nBrowser redirects to Stripe hosted checkout"]
+    G --> H["User enters card details"]
+    H --> I["Stripe fires webhook → POST /api/webhooks/stripe\nCrovver activates subscription"]
+    I --> J["useSubscription() returns isActive: true ✅"]
 ```
 
 ## Step 1 — Trigger from Your App

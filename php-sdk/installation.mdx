@@ -1,0 +1,123 @@
+---
+title: PHP SDK
+description: Integrate Crovver into your PHP backend.
+---
+
+## Installation
+
+```bash
+composer require crovver/crovver-php
+```
+
+**Requirements:** PHP 8.0+, Composer.
+
+## Initialize the Client
+
+```php
+use Crovver\CrovverClient;
+use Crovver\CrovverConfig;
+
+$client = new CrovverClient(new CrovverConfig(
+    apiKey: getenv('CROVVER_SECRET_KEY'),
+));
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | string | required | Your secret API key (`sk_live_...`) |
+| `timeout` | int | `30` | Request timeout in seconds |
+| `maxRetries` | int | `3` | Retry attempts for server errors |
+| `debug` | bool | `false` | Log requests and responses |
+| `logger` | callable | `null` | Custom logger: `fn($msg, $ctx)` |
+
+## Tenant Management
+
+```php
+use Crovver\Types\CreateTenantRequest;
+
+// Create a tenant (B2B: workspace or user)
+$tenant = $client->createTenant(new CreateTenantRequest(
+    externalTenantId: 'workspace_abc123',
+    name: 'Acme Corp',
+));
+
+// Retrieve a tenant
+$tenant = $client->getTenant('workspace_abc123');
+```
+
+## Plans
+
+```php
+$plans = $client->getPlans();
+
+foreach ($plans->plans as $plan) {
+    echo $plan->name . ' - $' . ($plan->priceAmount / 100) . '/mo';
+}
+```
+
+## Subscriptions
+
+```php
+$result = $client->getSubscriptions('workspace_abc123');
+
+foreach ($result->subscriptions as $sub) {
+    echo $sub->status; // active, trialing, canceled, past_due...
+}
+```
+
+## Feature Entitlements
+
+```php
+$canAccess = $client->canAccess('workspace_abc123', 'advanced_analytics');
+
+if ($canAccess) {
+    // serve the feature
+}
+```
+
+## Usage Tracking
+
+```php
+// Record usage
+$client->recordUsage('workspace_abc123', 'api_calls', 1);
+
+// Check against limit
+$limit = $client->checkUsageLimit('workspace_abc123', 'api_calls');
+echo $limit->used . ' / ' . $limit->limit;
+```
+
+## Checkout
+
+```php
+use Crovver\Types\CreateCheckoutSessionRequest;
+
+$session = $client->createCheckoutSession(new CreateCheckoutSessionRequest(
+    externalTenantId: 'workspace_abc123',
+    planId: 'plan_pro',
+    successUrl: 'https://yourapp.com/billing/success',
+    cancelUrl: 'https://yourapp.com/billing/cancel',
+));
+
+// Redirect user to $session->checkoutUrl
+```
+
+## Error Handling
+
+```php
+use Crovver\CrovverError;
+
+try {
+    $result = $client->getSubscriptions('workspace_abc123');
+} catch (CrovverError $e) {
+    $e->getMessage();     // Human-readable message
+    $e->getStatusCode();  // HTTP status code (null for network errors)
+    $e->getErrorCode();   // API error code string
+    $e->isRetryable();    // Whether the SDK already retried
+}
+```
+
+<Note>
+  5xx errors, 429, and 408 responses are retried automatically with exponential backoff. Checkout endpoints are **never** retried to prevent duplicate charges.
+</Note>
