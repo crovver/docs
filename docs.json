@@ -28,6 +28,12 @@
       "href": "https://app.crovver.com"
     }
   },
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/introduction"
+    }
+  ],
   "navigation": {
     "tabs": [
       {
