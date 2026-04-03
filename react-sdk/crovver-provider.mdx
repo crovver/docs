@@ -19,11 +19,14 @@ description: Root context provider that powers all SDK hooks and components.
 |---|---|---|---|---|
 | `publicKey` | `string` | ✅ | — | Your public API key (`pk_live_...`) |
 | `tenantId` | `string` | ✅ | — | The current user/workspace ID from your app |
+| `userId` | `string` | | — | The logged-in user's ID. Used to deduplicate tenant owner records across checkout sessions. Recommended. |
 | `apiUrl` | `string` | | SDK default | Override the Crovver API base URL |
-| `ecomUrl` | `string` | | SDK default | Override the ecom/pricing app URL |
+| `portalUrl` | `string` | | SDK default | Override the billing portal URL |
 | `pollInterval` | `number` | | `0` | Auto-refresh interval in ms. `0` = disabled |
 | `debug` | `boolean` | | `false` | Log SDK activity to the console |
 | `onUnauthenticated` | `() => void` | | — | Called when subscription is inactive |
+| `metadata.userEmail` | `string` | | — | User's email, passed to checkout/portal token requests |
+| `metadata.userName` | `string` | | — | User's display name, passed to checkout/portal token requests |
 
 ## Example
 
@@ -32,6 +35,7 @@ description: Root context provider that powers all SDK hooks and components.
   config={{
     publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
     tenantId: session.user.workspaceId,
+    userId: session.user.id,
     pollInterval: 30000,       // Refresh every 30 seconds
     debug: process.env.NODE_ENV === 'development',
     onUnauthenticated: () => router.push('/pricing'),
@@ -50,6 +54,7 @@ If your user can switch between workspaces, you can change `tenantId` dynamicall
   config={{
     publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
     tenantId: activeWorkspace.id,   // Changes when user switches workspace
+    userId: currentUser.id,
   }}
 >
 ```
@@ -63,12 +68,13 @@ If your user can switch between workspaces, you can change `tenantId` dynamicall
 "use client";
 import { CrovverProvider } from 'crovver-react';
 
-export function CrovverClientProvider({ tenantId, children }) {
+export function CrovverClientProvider({ tenantId, userId, children }) {
   return (
     <CrovverProvider
       config={{
         publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
         tenantId,
+        userId,
       }}
     >
       {children}

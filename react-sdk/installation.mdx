@@ -30,7 +30,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <CrovverProvider
           config={{
             publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
-            tenantId: 'CURRENT_USER_OR_WORKSPACE_ID',
+            tenantId: 'CURRENT_WORKSPACE_ID',
+            userId: 'CURRENT_USER_ID',
           }}
         >
           {children}
@@ -42,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```
 
 <Note>
-  The `tenantId` should be the ID of the currently authenticated user or workspace from **your** application — the same ID you use as `externalTenantId` when creating tenants or initiating checkout.
+  `tenantId` is the workspace or org ID from your app — the same value you use as `externalTenantId` when creating tenants or initiating checkout. `userId` is the individual user's ID and is used to deduplicate owner records across sessions.
 </Note>
 
 ## Environment Variables
