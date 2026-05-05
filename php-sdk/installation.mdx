@@ -103,6 +103,142 @@ $session = $client->createCheckoutSession(new CreateCheckoutSessionRequest(
 // Redirect user to $session->checkoutUrl
 ```
 
+## Seat Management
+
+Use these methods on seat-based plans to track which users occupy seats. This is separate from `recordUsage` — seat allocation is for per-user billing, not credit/quota consumption.
+
+### Get Seat Count
+
+```php
+$count = $client->getSeatCount('workspace_abc123');
+
+echo $count->activeCount;           // Active allocated seats
+echo $count->capacityUnits;         // Total seats in subscription
+echo $count->utilizationPercentage; // activeCount / capacityUnits × 100
+echo $count->billingMode;           // recurring | manual | free
+echo $count->exceeded ? 'Over limit' : 'Within limit';
+```
+
+### Allocate a Seat
+
+Call this when a user joins a workspace to record their seat allocation.
+
+```php
+use Crovver\Types\AllocateSeatRequest;
+
+$result = $client->allocateSeat(new AllocateSeatRequest(
+    requestingEntityId: 'workspace_abc123',
+    externalUserId: 'user_456',
+    email: 'alice@acme.com',
+    name: 'Alice',
+));
+
+if ($result->success) {
+    echo 'Seat allocated. Active seats: ' . $result->capacity->activeCount;
+}
+```
+
+If the workspace is at capacity and the plan is seat-based, Crovver returns a proration preview instead of allocating the seat:
+
+```php
+$result = $client->allocateSeat(new AllocateSeatRequest(
+    requestingEntityId: 'workspace_abc123',
+    externalUserId: 'user_789',
+));
+
+if ($result->requiresProration) {
+    // Show the user the upgrade cost before proceeding
+    echo 'Adding this seat costs ' . $result->proration->amount . ' ' . $result->proration->currency;
+    echo ' for ' . $result->proration->daysRemaining . ' remaining days in the billing period.';
+
+    // Then call createProrationCheckout to start payment
+    $checkout = $client->createProrationCheckout(
+        externalTenantId: 'workspace_abc123',
+        newCapacity: $result->proration->newSeats,
+        successUrl: 'https://yourapp.com/seats?upgraded=1',
+        cancelUrl: 'https://yourapp.com/seats',
+    );
+
+    // Redirect to $checkout->checkoutUrl
+}
+```
+
+#### `AllocateSeatRequest` Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `requestingEntityId` | string | yes | Your tenant/workspace ID |
+| `externalUserId` | string | no | Your user ID. If omitted, a system ID is generated (always creates a new allocation) |
+| `email` | string | no | User's email for audit records |
+| `name` | string | no | User's display name for audit records |
+| `metadata` | array | no | Arbitrary key/value pairs stored with the allocation |
+
+#### `AllocateSeatResponse` Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | bool | `true` when a seat was recorded |
+| `requiresProration` | bool | `true` when capacity is full and a prorated upgrade is needed |
+| `requiresCheckout` | bool | `true` when proration was already confirmed but payment is still pending (rare) |
+| `capacity` | `AllocateSeatCapacity\|null` | Present on success: `activeCount`, `capacityUnits`, `exceeded` |
+| `proration` | `AllocateSeatProration\|null` | Present when `requiresProration` is true |
+
+#### `GetSeatCountResponse` Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `activeCount` | int | Number of active seat allocations |
+| `capacityUnits` | int | Total seats included in the subscription |
+| `utilizationPercentage` | int | `activeCount / capacityUnits × 100` |
+| `billingMode` | string | `recurring`, `manual`, or `free` |
+| `exceeded` | bool | Whether `activeCount > capacityUnits` |
+
+### Proration Checkout
+
+Call this whenever a tenant needs more seats — proactively from a settings page, or after presenting the preview returned by `allocateSeat()`. Crovver calculates the prorated charge for the remaining days in the billing period and creates a checkout session using the same payment provider as the tenant's original subscription.
+
+```php
+$checkout = $client->createProrationCheckout(
+    externalTenantId: 'workspace_abc123',
+    newCapacity: 25,
+    successUrl: 'https://yourapp.com/seats?upgraded=1',
+    cancelUrl: 'https://yourapp.com/seats',
+);
+
+if ($checkout->requiresPayment) {
+    // Redirect to the provider's checkout page
+    header('Location: ' . $checkout->checkoutUrl);
+} else {
+    // Seat count was updated without payment (e.g. within free allowance)
+    echo $checkout->message;
+}
+```
+
+#### `createProrationCheckout` Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `externalTenantId` | string | yes | Your tenant/workspace ID |
+| `newCapacity` | int | yes | The new total seat count (must exceed current `capacityUnits`) |
+| `planId` | string | no | Plan ID if also switching plans at the same time |
+| `successUrl` | string | no | Redirect URL after successful payment |
+| `cancelUrl` | string | no | Redirect URL if the user cancels |
+
+#### `ProrationCheckoutResponse` Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `prorationId` | string | Unique ID for this proration calculation |
+| `requiresPayment` | bool | `true` when a Stripe checkout session was created |
+| `checkoutUrl` | string\|null | Stripe checkout URL — redirect the user here when `requiresPayment` is `true` |
+| `prorationAmount` | float | Amount charged in the plan's currency (in major units, e.g. `17.50`) |
+| `prorationDetails` | array | Breakdown: `daysRemaining`, `totalDaysInPeriod`, `perSeatPrice`, etc. |
+| `message` | string | Human-readable summary of the proration |
+
+<Note>
+  Proration checkout is **never** retried automatically to prevent duplicate Stripe sessions.
+</Note>
+
 ## Error Handling
 
 ```php

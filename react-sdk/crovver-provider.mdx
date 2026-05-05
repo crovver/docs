@@ -19,6 +19,7 @@ description: Root context provider that powers all SDK hooks and components.
 |---|---|---|---|---|
 | `publicKey` | `string` | ✅ | — | Your public API key (`pk_live_...`) |
 | `tenantId` | `string` | ✅ | — | The current user/workspace ID from your app |
+| `tenantName` | `string` | | — | Display name of the tenant (e.g. org or workspace name). Passed to checkout/portal so Crovver can show it in the UI |
 | `userId` | `string` | | — | The logged-in user's ID. Used to deduplicate tenant owner records across checkout sessions. Recommended. |
 | `apiUrl` | `string` | | SDK default | Override the Crovver API base URL |
 | `portalUrl` | `string` | | SDK default | Override the billing portal URL |
@@ -35,6 +36,7 @@ description: Root context provider that powers all SDK hooks and components.
   config={{
     publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
     tenantId: session.user.workspaceId,
+    tenantName: session.user.workspaceName,
     userId: session.user.id,
     pollInterval: 30000,       // Refresh every 30 seconds
     debug: process.env.NODE_ENV === 'development',
