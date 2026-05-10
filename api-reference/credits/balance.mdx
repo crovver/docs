@@ -1,0 +1,103 @@
+---
+title: Get Credit Balance
+api: GET /api/public/credits/balance
+description: Fetch the current credit balance for all pools on a tenant's active plan.
+---
+
+Returns a breakdown of base (plan-included) and add-on credits remaining per pool, along with expiry and limit info.
+
+## Query Parameters
+
+<ParamField query="tenantId" type="string" required>
+  The external tenant ID from your application
+</ParamField>
+
+## Authentication
+
+Requires a **public key** (`x-public-key: pk_live_...`) or **secret key** (`Authorization: Bearer sk_live_...`).
+
+## Response
+
+Returns an object keyed by `pool_key`. Returns an empty object `{}` if the tenant has no active subscription.
+
+<ResponseField name="data.[poolKey].poolKey" type="string">
+  The pool key (e.g., `api_calls`, `ai_tokens`)
+</ResponseField>
+
+<ResponseField name="data.[poolKey].displayName" type="string">
+  Human-readable pool name
+</ResponseField>
+
+<ResponseField name="data.[poolKey].baseRemaining" type="integer">
+  Credits remaining from the plan's base allocation
+</ResponseField>
+
+<ResponseField name="data.[poolKey].addonRemaining" type="integer">
+  Credits remaining from add-on purchases
+</ResponseField>
+
+<ResponseField name="data.[poolKey].total" type="integer">
+  Total remaining credits (`baseRemaining + addonRemaining`)
+</ResponseField>
+
+<ResponseField name="data.[poolKey].limit" type="integer">
+  The pool's `limit_per_period` as defined on the plan
+</ResponseField>
+
+<ResponseField name="data.[poolKey].limitBehavior" type="string">
+  `hard` or `soft` — whether the pool blocks consumption at zero or allows overage
+</ResponseField>
+
+<ResponseField name="data.[poolKey].nextExpiry" type="string | null">
+  ISO timestamp of the earliest upcoming credit expiry, or `null` if credits never expire
+</ResponseField>
+
+<ResponseField name="data.[poolKey].usagePercent" type="integer">
+  Percentage of credits consumed so far (`0–100`)
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl "https://api.crovver.com/api/public/credits/balance?tenantId=workspace_123" \
+  -H "x-public-key: pk_live_..."
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "api_calls": {
+      "poolKey": "api_calls",
+      "displayName": "API Calls",
+      "baseRemaining": 850,
+      "addonRemaining": 500,
+      "total": 1350,
+      "limit": 1000,
+      "limitBehavior": "soft",
+      "nextExpiry": "2025-02-01T00:00:00Z",
+      "usagePercent": 15
+    },
+    "ai_tokens": {
+      "poolKey": "ai_tokens",
+      "displayName": "AI Tokens",
+      "baseRemaining": 0,
+      "addonRemaining": 200,
+      "total": 200,
+      "limit": 500,
+      "limitBehavior": "hard",
+      "nextExpiry": "2025-01-20T00:00:00Z",
+      "usagePercent": 60
+    }
+  }
+}
+```
+
+```json 200 No active subscription
+{
+  "success": true,
+  "data": {}
+}
+```
+</ResponseExample>

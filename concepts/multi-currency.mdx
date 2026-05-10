@@ -1,0 +1,87 @@
+---
+title: Multi-Currency
+description: Offer plans in multiple currencies from a single configuration.
+---
+
+Crovver supports billing tenants in **multiple currencies** from a single plan definition. Each plan stores one pricing entry per supported currency in the `plan_prices` table — there is no "base currency" concept.
+
+## How It Works
+
+```
+Plan: "Pro"
+  ├── plan_prices: { currency: "USD", amount: 2900 }
+  ├── plan_prices: { currency: "NPR", amount: 3900 }
+  └── plan_prices: { currency: "EUR", amount: 2700 }
+```
+
+When a tenant subscribes, the chosen currency is **locked to their subscription** for its lifetime. All future renewals, proration charges, and add-on purchases use that currency.
+
+## Currency Resolution at Checkout
+
+When you call `POST /api/public/checkout`, Crovver resolves the currency in this order:
+
+1. **Explicit currency** — use the value you passed in `currency` (validated against `plan_prices`)
+2. **Plan default** — if no currency is passed, use the first active `plan_prices` entry (ordered by `created_at ASC`)
+
+If you pass a currency that has no matching `plan_prices` row, the API returns `422 CURRENCY_NOT_SUPPORTED`.
+
+```bash
+POST /api/public/checkout
+{
+  "planId": "plan_pro",
+  "currency": "NPR",
+  "provider": "khalti",
+  ...
+}
+```
+
+## Seat-Based Multi-Currency
+
+For seat-based plans each `plan_prices` row stores both a `base_price` and a `per_seat_price` for that currency:
+
+| Currency | Base price | Per-seat price |
+|---|---|---|
+| USD | $50.00 (5000 cents) | $5.00 (500 cents) |
+| NPR | Rs 6,000 | Rs 600 |
+
+Pricing is always calculated in the tenant's locked currency:
+
+```
+total = base_price + max(0, seats - included_seats) × per_seat_price
+```
+
+## Add-on Pricing
+
+Add-ons have the same per-currency pricing model (`addon_pricing`). A tenant can only purchase an add-on **in their subscription's currency**. Attempting to buy with a different currency returns `422`.
+
+## Supported Providers by Currency
+
+Different payment providers support different currencies. Map providers to currencies when configuring your org:
+
+| Currency | Typical provider |
+|---|---|
+| USD, EUR | Stripe |
+| NPR | Khalti, eSewa |
+
+## Setting Up New Currency Pricing
+
+Use the plans API or dashboard to add a price per currency:
+
+```bash
+POST /api/admin/plans/{planId}/prices
+{
+  "currency": "EUR",
+  "amount": 2700,
+  "providerId": "stripe"
+}
+```
+
+For add-ons:
+```bash
+POST /api/addons/{addonId}/pricing
+{
+  "currency": "EUR",
+  "amount": 900,
+  "providerId": "stripe"
+}
+```

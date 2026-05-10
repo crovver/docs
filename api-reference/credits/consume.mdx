@@ -1,0 +1,141 @@
+---
+title: Consume Credits
+api: POST /api/credits/consume
+description: Deduct credits from a tenant's credit pool. Idempotent.
+---
+
+Deducts credits from a tenant's pool using the `consume_credits` database function. Credits are deducted FIFO — base credits first, then add-on credits, earliest-expiry first.
+
+Passing the same `idempotencyKey` twice returns the original result without double-charging.
+
+## Request Body
+
+<ParamField body="tenantId" type="string" required>
+  The external tenant ID from your application (e.g., `workspace_123`)
+</ParamField>
+
+<ParamField body="poolKey" type="string" required>
+  The credit pool to deduct from (e.g., `api_calls`, `ai_tokens`). Must match a pool defined on the tenant's active plan.
+</ParamField>
+
+<ParamField body="amount" type="integer" required>
+  Number of credits to consume. Must be a positive integer.
+</ParamField>
+
+<ParamField body="idempotencyKey" type="string" required>
+  Unique key for this consumption event. Duplicate calls with the same key return the original result immediately — no double deduction.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Optional key-value context (e.g., `{ "endpoint": "/api/export", "userId": "u_123" }`). Stored on the consumption event for auditing.
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key`).
+
+## Response
+
+<ResponseField name="result" type="string">
+  Outcome of the consumption: `allowed`, `warning`, or `blocked`.
+
+  - `allowed` — credits deducted successfully
+  - `warning` — credits deducted but balance is now below zero (soft limit pool)
+  - `blocked` — insufficient credits and pool uses hard limit enforcement; no deduction occurred
+</ResponseField>
+
+<ResponseField name="remaining" type="integer">
+  Credits remaining in the pool after this deduction.
+</ResponseField>
+
+<ResponseField name="alreadyProcessed" type="boolean">
+  `true` if this `idempotencyKey` was already processed. No deduction occurred on this call.
+</ResponseField>
+
+<ResponseField name="poolKey" type="string">
+  The pool key that was targeted.
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.crovver.com/api/credits/consume" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "workspace_123",
+    "poolKey": "api_calls",
+    "amount": 1,
+    "idempotencyKey": "consume-1778423112701",
+    "metadata": { "endpoint": "/api/export" }
+  }'
+```
+
+```typescript Node.js
+const res = await fetch("https://api.crovver.com/api/credits/consume", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer sk_live_...",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    tenantId: "workspace_123",
+    poolKey: "api_calls",
+    amount: 1,
+    idempotencyKey: `consume-${Date.now()}`,
+  }),
+});
+const { data } = await res.json();
+if (data.result === "blocked") {
+  // hard limit hit — surface upgrade prompt
+}
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Allowed
+{
+  "success": true,
+  "data": {
+    "result": "allowed",
+    "remaining": 849,
+    "alreadyProcessed": false,
+    "poolKey": "api_calls"
+  }
+}
+```
+
+```json 200 Blocked (hard limit)
+{
+  "success": true,
+  "data": {
+    "result": "blocked",
+    "remaining": 0,
+    "alreadyProcessed": false,
+    "poolKey": "api_calls"
+  }
+}
+```
+
+```json 200 Already processed (idempotent replay)
+{
+  "success": true,
+  "data": {
+    "result": "allowed",
+    "remaining": 849,
+    "alreadyProcessed": true,
+    "poolKey": "api_calls"
+  }
+}
+```
+
+```json 402 No active subscription
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "message": "No active subscription found for this tenant",
+    "code": "NO_SUBSCRIPTION"
+  }
+}
+```
+</ResponseExample>

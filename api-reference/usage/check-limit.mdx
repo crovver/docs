@@ -1,8 +1,12 @@
 ---
-title: Check Usage Limit
+title: Check Usage Limit (Deprecated)
 api: POST /api/public/check-usage-limit
-description: Check if a tenant is within their plan's usage limits.
+description: Deprecated. Use credits/balance + credits/consume instead.
 ---
+
+<Warning>
+  This endpoint is deprecated. It checks the legacy `usage_events` table, which is no longer the source of truth for metered billing. Use [`GET /api/public/credits/balance`](/api-reference/credits/balance) to read remaining credits and [`POST /api/credits/consume`](/api-reference/credits/consume) to deduct them.
+</Warning>
 
 Returns the tenant's current usage for a metric and whether they're within the limit defined by their plan.
 

@@ -1,0 +1,124 @@
+---
+title: Credits & Credit Pools
+description: How Crovver tracks consumable resource allocations per tenant.
+---
+
+**Credit Pools** are named buckets of consumable resources tied to a plan. They let you model metered features — AI tokens, SMS messages, API calls, rendered PDFs — with automatic refill, rollover, and hard/soft limit behaviour.
+
+## Credit Pool Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `pool_key` | string | Unique key within an org (e.g., `ai_tokens`, `sms_credits`) |
+| `display_name` | string | Human-readable label shown in the portal |
+| `limit_per_period` | integer | Credits granted to the tenant each billing period |
+| `refill_behavior` | enum | `reset` — unused credits are dropped; `rollover` — they carry forward |
+| `rollover_cap` | integer \| null | Max credits that can carry over (null = no cap) |
+| `limit_behavior` | enum | `hard` — requests blocked once limit is hit; `soft` — requests allowed but flagged |
+
+## Credit Sources
+
+A tenant's balance in a pool comes from two sources:
+
+```
+Balance = Base Credits (from plan) + Addon Credits (purchased)
+```
+
+| Source | When granted | Expiry |
+|---|---|---|
+| **Base** | Automatically on subscription activation or renewal | End of billing period |
+| **Add-on** | After successful add-on purchase (payment confirmed) | Per add-on `expiry_type` |
+
+## The Ledger
+
+Credits are tracked in a double-entry ledger table (`tenant_credit_ledger`). Each entry records:
+
+- `qty_granted` — credits issued at the time of grant
+- `qty_remaining` — credits not yet consumed (decremented on usage)
+- `source_type` — `base` or `addon`
+- `expires_at` — when these credits expire
+
+When a tenant consumes a resource, Crovver deducts from the oldest non-expired grant first (FIFO within each pool).
+
+## Checking Balance
+
+```bash
+GET /api/public/credits/balance?tenantId=workspace_123
+Authorization: Bearer sk_live_...
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "ai_tokens": {
+      "poolKey": "ai_tokens",
+      "displayName": "AI Tokens",
+      "baseRemaining": 750,
+      "addonRemaining": 500,
+      "total": 1250,
+      "limit": 1000,
+      "limitBehavior": "soft",
+      "nextExpiry": "2025-02-01T00:00:00Z",
+      "usagePercent": 0
+    }
+  }
+}
+```
+
+## Recording Consumption
+
+Call `credits/consume` from your backend whenever a tenant consumes a credit. Every call requires an `idempotencyKey` — passing the same key twice returns the original result without double-deducting.
+
+```bash
+POST /api/credits/consume
+Authorization: Bearer sk_live_...
+
+{
+  "tenantId": "workspace_123",
+  "poolKey": "ai_tokens",
+  "amount": 50,
+  "idempotencyKey": "consume-1778423112701"
+}
+```
+
+## Hard vs Soft Limits
+
+| Behavior | What happens at the limit |
+|---|---|
+| `hard` | Crovver returns an error; your app should block the action |
+| `soft` | Usage is still recorded; your app receives a flag to warn the user |
+
+Use `check-usage-limit` to gate actions before consuming:
+
+```bash
+POST /api/public/check-usage-limit
+Authorization: Bearer sk_live_...
+
+{
+  "requestingEntityId": "workspace_123",
+  "metricKey": "ai_tokens"
+}
+```
+
+```json
+{
+  "data": {
+    "allowed": true,
+    "current": 800,
+    "limit": 1000,
+    "remaining": 200,
+    "percentage": 80
+  }
+}
+```
+
+## Rollover Example
+
+A plan with `ai_tokens: 1000/month, refill_behavior: rollover, rollover_cap: 500`:
+
+| Month | Granted | Used | End Balance | Rolled into next month |
+|---|---|---|---|---|
+| Jan | 1,000 | 700 | 300 | 300 (< cap) |
+| Feb | 1,000 + 300 | 400 | 900 | 500 (capped) |
+| Mar | 1,000 + 500 | 1,100 | 400 | 400 |

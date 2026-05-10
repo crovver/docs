@@ -77,16 +77,140 @@ if ($canAccess) {
 }
 ```
 
-## Usage Tracking
+## Credits
+
+Credits are the preferred way to track and gate consumption in Crovver. Each credit pool has a key (e.g. `"ai_generations"`) and is refilled by plan entitlements or add-on purchases.
+
+### Check balance
 
 ```php
-// Record usage
+$balance = $client->getCreditsBalance('workspace_abc123');
+
+foreach ($balance['pools'] as $pool) {
+    echo $pool['poolKey'] . ': ' . $pool['remaining'] . ' remaining';
+}
+```
+
+### Consume credits
+
+`consumeCredits` is idempotent — passing the same `$idempotencyKey` twice returns the original result without double-deducting.
+
+```php
+$result = $client->consumeCredits(
+    tenantId: 'workspace_abc123',
+    poolKey: 'ai_generations',
+    amount: 1,
+    idempotencyKey: bin2hex(random_bytes(16)), // stable per user action
+    metadata: ['prompt' => 'summarise report'], // optional
+);
+
+if ($result->result === 'success') {
+    echo 'Remaining: ' . $result->remaining;
+} else {
+    // result === 'insufficient_credits'
+    // Prompt the user to purchase an add-on or upgrade
+}
+```
+
+**`consumeCredits` parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | Yes | Your tenant/workspace ID |
+| `poolKey` | string | Yes | Credit pool identifier defined in your plan |
+| `amount` | int | Yes | Units to deduct |
+| `idempotencyKey` | string | Yes | Unique key per action; prevents double-deduction |
+| `metadata` | array\|null | No | Arbitrary key/value pairs stored with the event |
+
+**`ConsumeResponse` fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `result` | string | `"success"` or `"insufficient_credits"` |
+| `remaining` | int | Credits left in the pool after deduction |
+| `alreadyProcessed` | bool | `true` when the idempotency key was already seen |
+| `poolKey` | string | Echoed pool key |
+
+---
+
+## Add-ons
+
+Add-ons let tenants purchase extra credit packs without changing their base plan.
+
+### List available add-ons
+
+```php
+$addons = $client->listAvailableAddons('workspace_abc123');
+
+foreach ($addons as $addon) {
+    echo $addon['name'] . ': ' . $addon['creditQty'] . ' credits — '
+        . $addon['currency'] . ' ' . $addon['amount'];
+}
+```
+
+### Purchase an add-on
+
+```php
+$purchase = $client->purchaseAddon(
+    externalTenantId: 'workspace_abc123',
+    addonId: 'addon_uuid',
+    currency: 'USD',
+    idempotencyKey: bin2hex(random_bytes(16)),
+    successUrl: 'https://yourapp.com/billing/success',
+    cancelUrl: 'https://yourapp.com/billing/cancel',
+);
+
+if ($purchase->requiresPayment) {
+    // Redirect to Stripe checkout
+    header('Location: ' . $purchase->checkoutUrl);
+    exit;
+} else {
+    // Credits added immediately (free add-on or already processed)
+    echo $purchase->creditQty . ' credits added';
+}
+```
+
+**`AddonPurchaseResponse` fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `purchaseId` | string | Unique purchase record ID |
+| `checkoutUrl` | string\|null | Stripe checkout URL — present when `requiresPayment` is `true` |
+| `requiresPayment` | bool | `true` when a checkout session was created |
+| `addonName` | string | Display name of the add-on |
+| `creditQty` | int | Credits that will be added on completion |
+| `amount` | float | Charge amount in major currency units |
+| `currency` | string | Currency code (e.g. `"USD"`) |
+| `alreadyProcessed` | bool | `true` when the idempotency key was already seen |
+
+### Get active add-on credits
+
+```php
+$active = $client->getActiveAddonCredits('workspace_abc123');
+
+foreach ($active as $pool) {
+    echo $pool['poolKey'] . ': ' . $pool['remaining'] . ' remaining';
+}
+```
+
+---
+
+## Usage Tracking (deprecated)
+
+<Warning>
+  `recordUsage` and `checkUsageLimit` are deprecated. They write to a simple event log with no idempotency and do not integrate with the credit pool system. Use [`consumeCredits`](#credits) instead.
+</Warning>
+
+```php
+// ❌ Deprecated — use consumeCredits() instead
 $client->recordUsage('workspace_abc123', 'api_calls', 1);
 
-// Check against limit
+// ❌ Deprecated — use getCreditsBalance() instead
 $limit = $client->checkUsageLimit('workspace_abc123', 'api_calls');
 echo $limit->used . ' / ' . $limit->limit;
 ```
+
+---
 
 ## Checkout
 
@@ -96,6 +220,7 @@ use Crovver\Types\CreateCheckoutSessionRequest;
 $session = $client->createCheckoutSession(new CreateCheckoutSessionRequest(
     externalTenantId: 'workspace_abc123',
     planId: 'plan_pro',
+    currency: 'USD',                                    // optional; defaults to plan's first price
     successUrl: 'https://yourapp.com/billing/success',
     cancelUrl: 'https://yourapp.com/billing/cancel',
 ));

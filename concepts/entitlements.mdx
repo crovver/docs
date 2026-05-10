@@ -68,25 +68,25 @@ import { FeatureGuard } from 'crovver-react';
 </FeatureGuard>
 ```
 
-## Usage Limits
+## Metered / Credit-Based Limits
 
-Entitlements handle boolean feature access. For **numeric limits** (e.g., max API calls), use the usage endpoints:
+Entitlements handle boolean feature access. For **consumable resources** (API calls, AI tokens, SMS credits), use the credit pool system instead:
+
+1. **Check balance** before the action — [`GET /api/public/credits/balance`](/api-reference/credits/balance)
+2. **Consume credits** after the action — [`POST /api/credits/consume`](/api-reference/credits/consume) (idempotent)
 
 ```bash
-POST /api/public/check-usage-limit
+# 1. Read balance
+GET /api/public/credits/balance?tenantId=workspace_123
+
+# 2. Consume
+POST /api/credits/consume
 {
-  "metricKey": "api_calls",
-  "requestingEntityId": "workspace_123"
+  "tenantId": "workspace_123",
+  "poolKey": "api_calls",
+  "amount": 1,
+  "idempotencyKey": "consume-1778423112701"
 }
 ```
 
-```json
-{
-  "data": {
-    "withinLimit": true,
-    "current": 4821,
-    "limit": 10000,
-    "percentUsed": 48.21
-  }
-}
-```
+See [Credits & Credit Pools](/concepts/credits) for the full model.

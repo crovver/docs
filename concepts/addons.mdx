@@ -1,0 +1,71 @@
+---
+title: Add-ons
+description: Purchasable credit packs that layer on top of a base subscription.
+---
+
+**Add-ons** are one-time purchasable credit bundles that tenants can buy on top of their existing subscription. Use them when you want to let customers top up a specific resource (API calls, SMS messages, AI tokens, storage) without requiring a plan upgrade.
+
+## How Add-ons Work
+
+```
+Plan ──── defines ────► Credit Pool (ai_tokens, limit=1000/mo)
+  │
+  └──── assigns ───────► Add-on: "AI Token Pack"
+                            pool_key: ai_tokens
+                            credit_qty: 500
+                            expiry_type: days (30)
+```
+
+1. You define a **Credit Pool** on a plan — this sets the tenant's base allocation for a resource.
+2. You create an **Add-on** that maps to the same `pool_key`.
+3. You assign the add-on to one or more plans.
+4. Tenants on those plans can purchase the add-on to get extra credits in that pool.
+
+## Add-on Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `pool_key` | string | Identifier tying the add-on to a credit pool (e.g., `ai_tokens`) |
+| `display_name` | string | User-facing name shown in the billing portal |
+| `credit_qty` | integer | Credits granted per purchase |
+| `expiry_type` | enum | `period` (resets with plan cycle), `days` (expires N days after purchase), or `never` |
+| `expiry_days` | integer | Required when `expiry_type = "days"` |
+| `is_active` | boolean | Soft-delete flag; inactive add-ons are hidden from tenants |
+
+## Credit Expiry Types
+
+| Type | Behaviour |
+|---|---|
+| `period` | Credits expire at the end of the tenant's current billing period |
+| `days` | Credits expire `expiry_days` days after purchase |
+| `never` | Credits never expire |
+
+## Pricing
+
+Each add-on has per-currency pricing stored in `addon_pricing`. A tenant can only purchase an add-on in the **same currency as their subscription**. Set up at least one price per currency you support.
+
+```json
+{
+  "providerId": "stripe",
+  "currency": "USD",
+  "amount": 1000,
+  "externalPriceId": "price_stripe_..."
+}
+```
+
+## Plan Assignment
+
+An add-on is not visible to tenants until it is **assigned to their plan**. This lets you offer different upsell catalogs per pricing tier — for example, the Starter plan can only buy "Small Token Packs" while the Pro plan can access "Large Token Packs" too.
+
+## Soft Deletion
+
+Deleting an add-on with active purchases triggers a **soft-delete** (`is_active = false`). The add-on disappears from the purchase catalog but existing credit grants remain valid. Hard deletion happens only if there are no active purchase records.
+
+## Admin Grants
+
+Admins can grant add-on credits to a tenant without charging them. This is useful for:
+- Compensating for a service issue
+- Running promotions
+- Onboarding credits
+
+Admin grants set `amount_charged = 0` and appear in the purchase history alongside paid purchases.

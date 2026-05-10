@@ -80,16 +80,124 @@ if (canAccess) {
 }
 ```
 
-## Usage Tracking
+## Credits
+
+Credits are the preferred way to track and gate consumption in Crovver. Each credit pool has a key (e.g. `"ai_generations"`) and is refilled by plan entitlements or add-on purchases.
+
+### Check balance
 
 ```typescript
-// Record usage
+const balance = await crovver.credits.balance({ tenantId: "workspace_abc123" });
+
+for (const pool of balance.pools) {
+  console.log(`${pool.poolKey}: ${pool.remaining} remaining`);
+}
+```
+
+### Consume credits
+
+`consume` is idempotent — passing the same `idempotencyKey` twice returns the original result without double-deducting.
+
+```typescript
+const result = await crovver.credits.consume({
+  tenantId: "workspace_abc123",
+  poolKey: "ai_generations",
+  amount: 1,
+  idempotencyKey: crypto.randomUUID(), // stable per user action
+  metadata: { prompt: "summarise report" }, // optional
+});
+
+if (result.result === "success") {
+  console.log(`Remaining: ${result.remaining}`);
+} else {
+  // result.result === "insufficient_credits"
+  // Prompt the user to purchase an add-on or upgrade
+}
+```
+
+**`ConsumeCreditsRequest` fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tenantId` | string | Yes | Your tenant/workspace ID |
+| `poolKey` | string | Yes | Credit pool identifier defined in your plan |
+| `amount` | number | Yes | Units to deduct |
+| `idempotencyKey` | string | Yes | Unique key per action; prevents double-deduction |
+| `metadata` | object | No | Arbitrary key/value pairs stored with the event |
+
+**`ConsumeResponse` fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `result` | `"success" \| "insufficient_credits"` | Outcome of the deduction |
+| `remaining` | number | Credits left in the pool after deduction |
+| `alreadyProcessed` | boolean | `true` when the idempotency key was already seen |
+| `poolKey` | string | Echoed pool key |
+
+---
+
+## Add-ons
+
+Add-ons let tenants purchase extra credit packs without changing their base plan.
+
+### List available add-ons
+
+```typescript
+const addons = await crovver.addons.listAvailable("workspace_abc123");
+
+for (const addon of addons) {
+  console.log(`${addon.name}: ${addon.creditQty} credits — ${addon.currency} ${addon.amount}`);
+}
+```
+
+### Purchase an add-on
+
+```typescript
+const purchase = await crovver.addons.purchase("workspace_abc123", {
+  addonId: "addon_uuid",
+  currency: "USD",
+  idempotencyKey: crypto.randomUUID(),
+  successUrl: "https://yourapp.com/billing/success",
+  cancelUrl: "https://yourapp.com/billing/cancel",
+});
+
+if (purchase.requiresPayment) {
+  // Redirect to Stripe checkout
+  window.location.href = purchase.checkoutUrl;
+} else {
+  // Credits added immediately (free add-on or already processed)
+  console.log(`${purchase.creditQty} credits added`);
+}
+```
+
+### Get active add-on credits
+
+```typescript
+const active = await crovver.addons.getActive("workspace_abc123");
+
+for (const pool of active) {
+  console.log(`${pool.poolKey}: ${pool.remaining} remaining`);
+}
+```
+
+---
+
+## Usage Tracking (deprecated)
+
+<Warning>
+  `recordUsage` and `checkUsageLimit` are deprecated. They write to a simple event log with no idempotency and do not integrate with the credit pool system. Use [`credits.consume`](#credits) instead.
+</Warning>
+
+```typescript
+// ❌ Deprecated — use credits.consume() instead
 await crovver.recordUsage("workspace_abc123", "api_calls", 1);
 
-// Check against limit
+// ❌ Deprecated — use credits.balance() instead
 const limit = await crovver.checkUsageLimit("workspace_abc123", "api_calls");
 console.log(`${limit.used} / ${limit.limit}`);
 ```
+
+---
 
 ## Checkout
 

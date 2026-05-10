@@ -52,7 +52,10 @@
               "concepts/tenants",
               "concepts/plans",
               "concepts/subscriptions",
-              "concepts/entitlements"
+              "concepts/entitlements",
+              "concepts/credits",
+              "concepts/addons",
+              "concepts/multi-currency"
             ]
           },
           {
@@ -111,7 +114,10 @@
               "guides/checkout-flow",
               "guides/seat-based-billing",
               "guides/webhooks",
-              "guides/test-mode"
+              "guides/test-mode",
+              "guides/multi-currency",
+              "guides/addons",
+              "guides/credits"
             ]
           }
         ]
@@ -142,11 +148,43 @@
             ]
           },
           {
+            "group": "Credits",
+            "icon": "coins",
+            "pages": [
+              "api-reference/credits/consume",
+              "api-reference/credits/balance"
+            ]
+          },
+          {
+            "group": "Add-ons",
+            "icon": "package-plus",
+            "pages": [
+              "api-reference/addons/list",
+              "api-reference/addons/create",
+              "api-reference/addons/update",
+              "api-reference/addons/delete",
+              "api-reference/addons/pricing",
+              "api-reference/addons/plan-assignment",
+              "api-reference/addons/tenant-available",
+              "api-reference/addons/tenant-purchase",
+              "api-reference/addons/tenant-active"
+            ]
+          },
+          {
+            "group": "Capacity (Seats)",
+            "icon": "users",
+            "pages": [
+              "api-reference/capacity/allocate",
+              "api-reference/capacity/count",
+              "api-reference/capacity/remove",
+              "api-reference/capacity/proration-checkout"
+            ]
+          },
+          {
             "group": "Features & Usage",
             "icon": "bar-chart-2",
             "pages": [
               "api-reference/features/can-access",
-              "api-reference/usage/record",
               "api-reference/usage/check-limit"
             ]
           },
@@ -161,6 +199,14 @@
             "pages": [
               "api-reference/tenants/create",
               "api-reference/tenants/list"
+            ]
+          },
+          {
+            "group": "Deprecated",
+            "icon": "archive",
+            "pages": [
+              "api-reference/usage/record",
+              "api-reference/usage/check-limit"
             ]
           }
         ]

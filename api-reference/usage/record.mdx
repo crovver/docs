@@ -1,8 +1,12 @@
 ---
-title: Record Usage
+title: Record Usage (Deprecated)
 api: POST /api/public/record-usage
-description: Track a usage event against a tenant's metric.
+description: Deprecated. Use POST /api/credits/consume instead.
 ---
+
+<Warning>
+  This endpoint is deprecated. Use [`POST /api/credits/consume`](/api-reference/credits/consume) instead — it deducts directly from the credit ledger, is idempotent via `idempotencyKey`, and returns the remaining balance in a single call.
+</Warning>
 
 Records a usage event for a tenant. Crovver accumulates these events and checks them against the plan's `limits` when `check-usage-limit` is called.
 
