@@ -6,36 +6,42 @@ description: Create a checkout session for a mid-cycle seat upgrade with prorati
 
 When a tenant needs more seats mid-billing cycle, this endpoint calculates the prorated charge for the remaining days and creates a Stripe checkout session for that amount.
 
+The actual capacity upgrade happens **after payment confirmation** via the Stripe webhook (`event_type: seat_proration`). For non-Stripe providers (Khalti, eSewa), an invoice is generated instead.
+
 ## Request Body
 
-<ParamField body="requestingTenantId" type="string" required>
-  The external tenant/workspace ID
+<ParamField body="externalTenantId" type="string" required>
+  The external tenant/workspace ID from your application
 </ParamField>
 
-<ParamField body="newCapacity" type="number" required>
+<ParamField body="newCapacity" type="integer" required>
   The new total seat count (must be greater than current `capacityUnits`)
 </ParamField>
 
-<ParamField body="successUrl" type="string" required>
-  URL to redirect to after payment
+<ParamField body="planId" type="string">
+  The plan ID to upgrade. Defaults to the tenant's current active plan.
 </ParamField>
 
-<ParamField body="cancelUrl" type="string" required>
-  URL to redirect to if the user cancels
+<ParamField body="successUrl" type="string">
+  URL to redirect to after payment. Defaults to the org's configured success URL.
+</ParamField>
+
+<ParamField body="cancelUrl" type="string">
+  URL to redirect to if the user cancels. Defaults to the org's configured cancel URL.
 </ParamField>
 
 ## Authentication
 
-Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key**.
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key` + `?orgId=`).
 
 <RequestExample>
 ```bash cURL
-curl -X POST "https://api.crovver.com/api/public/capacity/proration-checkout" \
+curl -X POST "https://app.crovver.com/api/public/capacity/proration-checkout" \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "requestingTenantId": "workspace_123",
-    "newCapacity": 25,
+    "externalTenantId": "workspace_123",
+    "newCapacity": 15,
     "successUrl": "https://app.com/settings?upgraded=1",
     "cancelUrl": "https://app.com/settings/seats"
   }'
@@ -43,14 +49,32 @@ curl -X POST "https://api.crovver.com/api/public/capacity/proration-checkout" \
 </RequestExample>
 
 <ResponseExample>
-```json 201
+```json 200 Stripe checkout created
 {
   "success": true,
   "data": {
+    "prorationId": "uuid",
     "checkoutUrl": "https://checkout.stripe.com/pay/cs_...",
-    "proratedAmount": 1750,
-    "newCapacity": 25,
-    "additionalSeats": 10
+    "requiresPayment": true,
+    "prorationAmount": 1750,
+    "prorationDetails": {
+      "description": "Prorated charge for 5 additional seats",
+      "calculation": "5 seats × $1.00/seat × 17/30 days"
+    },
+    "message": "Checkout session created. Capacity will be upgraded after payment confirmation."
+  }
+}
+```
+
+```json 200 Invoice generated (non-Stripe)
+{
+  "success": true,
+  "data": {
+    "prorationId": "uuid",
+    "checkoutUrl": null,
+    "requiresPayment": false,
+    "prorationAmount": 1750,
+    "message": "Invoice generated. Capacity will be updated after payment confirmation."
   }
 }
 ```

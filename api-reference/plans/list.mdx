@@ -1,20 +1,21 @@
 ---
 title: List Plans
 api: GET /api/public/plans
-description: Get all active plans available for your organization.
+description: Get all active plans for your organization.
+authMethod: "none"
 ---
 
-Returns all active plans for the organization associated with the provided public key. Use this to build your pricing page.
+Returns all active plans for the organization associated with the provided public key. Use this to build your pricing page. Test mode plans are hidden when authenticating via service key.
 
 ## Query Parameters
 
 <ParamField query="publicKey" type="string" required>
-  Your public key (`pk_live_...`)
+  Your public key (`pk_live_...` or `pk_test_...`)
 </ParamField>
 
 <RequestExample>
 ```bash cURL
-curl "https://api.crovver.com/api/public/plans?publicKey=pk_live_..."
+curl "https://app.crovver.com/api/public/plans?publicKey=pk_live_..."
 ```
 </RequestExample>
 
@@ -22,40 +23,74 @@ curl "https://api.crovver.com/api/public/plans?publicKey=pk_live_..."
 ```json 200
 {
   "success": true,
-  "data": [
-    {
-      "id": "plan_starter",
-      "name": "Starter",
-      "priceAmount": 0,
-      "billingInterval": "monthly",
-      "trialDays": 0,
-      "features": { "basic_analytics": true },
-      "limits": { "api_calls": 1000, "team_members": 2 },
-      "isSeatBased": false
-    },
-    {
-      "id": "plan_pro",
-      "name": "Pro",
-      "priceAmount": 2900,
-      "billingInterval": "monthly",
-      "trialDays": 14,
-      "features": { "basic_analytics": true, "advanced_analytics": true, "api_access": true },
-      "limits": { "api_calls": 10000, "team_members": 10 },
-      "isSeatBased": false
-    },
-    {
-      "id": "plan_business",
-      "name": "Business",
-      "priceAmount": 5000,
-      "billingInterval": "monthly",
-      "trialDays": 0,
-      "features": { "basic_analytics": true, "advanced_analytics": true, "api_access": true, "sso": true },
-      "limits": { "api_calls": 100000 },
-      "isSeatBased": true,
-      "includedSeats": 10,
-      "perSeatPrice": 500
+  "data": {
+    "plans": [
+      {
+        "id": "plan_starter",
+        "name": "Starter",
+        "description": "For small teams",
+        "pricing": {
+          "interval": "monthly",
+          "isSeatBased": false,
+          "currency": "USD",
+          "amount": 0
+        },
+        "prices": [
+          { "currency": "USD", "amount": 0 },
+          { "currency": "NPR", "amount": 0 }
+        ],
+        "trial": { "days": 0, "available": false },
+        "features": { "basic_analytics": true },
+        "creditPools": [],
+        "product": { "id": "prod_abc", "name": "My SaaS", "description": null },
+        "paymentProviders": [{ "provider_type": "stripe", "is_active": true }],
+        "isFree": true,
+        "isSeatBased": false,
+        "test_mode": false
+      },
+      {
+        "id": "plan_pro",
+        "name": "Pro",
+        "description": "For growing teams",
+        "pricing": {
+          "interval": "monthly",
+          "isSeatBased": true,
+          "currency": "USD",
+          "basePrice": 29,
+          "includedSeats": 5,
+          "perSeatPrice": 5,
+          "minSeats": null,
+          "maxSeats": null
+        },
+        "prices": [
+          { "currency": "USD", "basePrice": "29.00", "perSeatPrice": "5.00" },
+          { "currency": "NPR", "basePrice": "3900.00", "perSeatPrice": "675.00" }
+        ],
+        "trial": { "days": 14, "available": true },
+        "features": { "basic_analytics": true, "advanced_analytics": true },
+        "creditPools": [
+          {
+            "poolKey": "api_calls",
+            "displayName": "API Calls",
+            "limitPerPeriod": 10000,
+            "refillBehavior": "reset",
+            "rolloverCap": null,
+            "limitBehavior": "soft"
+          }
+        ],
+        "product": { "id": "prod_abc", "name": "My SaaS", "description": null },
+        "paymentProviders": [{ "provider_type": "stripe", "is_active": true }],
+        "isFree": false,
+        "isSeatBased": true,
+        "test_mode": false
+      }
+    ],
+    "organization": {
+      "id": "uuid",
+      "name": "My SaaS",
+      "type": "b2b"
     }
-  ]
+  }
 }
 ```
 </ResponseExample>

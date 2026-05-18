@@ -2,9 +2,12 @@
 title: Create Portal Token
 api: POST /api/public/auth/portal-token
 description: Mint a short-lived JWT to redirect the user to the billing portal.
+authMethod: "none"
 ---
 
-Creates a signed JWT for accessing the billing portal — where tenants can view invoices, update payment methods, manage seats, and cancel their subscription.
+Creates a signed JWT for accessing the self-service billing portal — where tenants can view invoices, update payment methods, manage seats, and cancel their subscription.
+
+The tenant must already exist (i.e. have gone through checkout at least once). Returns `404` if the tenant is not found.
 
 ## Request Headers
 
@@ -19,7 +22,11 @@ Creates a signed JWT for accessing the billing portal — where tenants can view
 </ParamField>
 
 <ParamField body="returnUrl" type="string" required>
-  URL to return to when the user exits the portal
+  URL to return to when the user exits the portal. Must be a valid URL.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Optional context stored with the token. Supports `userEmail`, `userName`.
 </ParamField>
 
 ## Response
@@ -34,7 +41,7 @@ Creates a signed JWT for accessing the billing portal — where tenants can view
 
 <RequestExample>
 ```bash cURL
-curl -X POST "https://api.crovver.com/api/public/auth/portal-token" \
+curl -X POST "https://app.crovver.com/api/public/auth/portal-token" \
   -H "x-public-key: pk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -53,8 +60,19 @@ curl -X POST "https://api.crovver.com/api/public/auth/portal-token" \
     "expiresAt": "2025-01-01T00:10:00Z"
   },
   "meta": {
-    "portalUrl": "https://ecom.crovver.com/portal?token=eyJhbGci...",
+    "portalUrl": "https://portal.crovver.com/billing?token=eyJhbGci...",
     "expiresIn": 600
+  }
+}
+```
+
+```json 404 Tenant not found
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "message": "Tenant not found. Use the checkout flow to create a subscription first.",
+    "code": "TENANT_NOT_FOUND"
   }
 }
 ```

@@ -2,9 +2,10 @@
 title: Create Checkout Token
 api: POST /api/public/auth/checkout-token
 description: Mint a short-lived JWT to initiate the checkout redirect flow.
+authMethod: "none"
 ---
 
-Creates a signed JWT that the ecom/pricing app uses to identify the tenant during checkout. The React SDK calls this automatically when you invoke `redirectToCheckout()`.
+Creates a signed JWT that the portal uses to identify the tenant during checkout. The React SDK calls this automatically when you invoke `redirectToCheckout()`.
 
 ## Request Headers
 
@@ -22,12 +23,24 @@ Creates a signed JWT that the ecom/pricing app uses to identify the tenant durin
   URL to return to after checkout completes
 </ParamField>
 
+<ParamField body="externalUserId" type="string">
+  The user ID from your application. Used for D2C tenant auto-provisioning.
+</ParamField>
+
+<ParamField body="externalTenantName" type="string">
+  Display name for the tenant. Used when auto-provisioning a new tenant.
+</ParamField>
+
 <ParamField body="requiredFeature" type="string">
-  Pre-selects a plan that includes this feature on the pricing page
+  Pre-selects a plan that includes this feature on the pricing page.
 </ParamField>
 
 <ParamField body="requiredPlan" type="string">
-  Pre-selects a specific plan ID on the pricing page
+  Pre-selects a specific plan ID on the pricing page.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Additional context passed into the JWT. Supports `userEmail`, `userName`, and custom fields.
 </ParamField>
 
 ## Response
@@ -41,12 +54,12 @@ Creates a signed JWT that the ecom/pricing app uses to identify the tenant durin
 </ResponseField>
 
 <ResponseField name="meta.checkoutUrl" type="string">
-  The full ecom URL with token appended — you can use this directly
+  The full portal URL with token appended — redirect the user here
 </ResponseField>
 
 <RequestExample>
 ```bash cURL
-curl -X POST "https://api.crovver.com/api/public/auth/checkout-token" \
+curl -X POST "https://app.crovver.com/api/public/auth/checkout-token" \
   -H "x-public-key: pk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -65,7 +78,7 @@ curl -X POST "https://api.crovver.com/api/public/auth/checkout-token" \
     "expiresAt": "2025-01-01T00:10:00Z"
   },
   "meta": {
-    "checkoutUrl": "https://ecom.crovver.com/pricing?token=eyJhbGci...",
+    "checkoutUrl": "https://portal.crovver.com/pricing?token=eyJhbGci...",
     "expiresIn": 600
   }
 }

@@ -4,7 +4,7 @@ api: POST /api/public/subscriptions/{subscriptionId}/cancel
 description: Cancel an active subscription.
 ---
 
-Cancels a subscription. The subscription moves to `canceled` status and the tenant loses access immediately (or at the end of the billing period, depending on your configuration).
+Cancels a subscription. For **recurring** (Stripe-managed) subscriptions, the status moves to `pending_cancel` and access continues until the end of the current billing period. For **manual** billing subscriptions, the status moves to `canceled` immediately.
 
 ## Path Parameters
 
@@ -13,6 +13,10 @@ Cancels a subscription. The subscription moves to `canceled` status and the tena
 </ParamField>
 
 ## Request Body
+
+<ParamField body="externalTenantId" type="string" required>
+  The external tenant ID from your application. Used to verify the subscription belongs to this tenant.
+</ParamField>
 
 <ParamField body="reason" type="string" required>
   Cancellation reason. One of: `too_expensive`, `missing_features`, `switching_provider`, `not_using`, `other`
@@ -28,10 +32,11 @@ Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key
 
 <RequestExample>
 ```bash cURL
-curl -X POST "https://api.crovver.com/api/public/subscriptions/sub_xyz/cancel" \
+curl -X POST "https://app.crovver.com/api/public/subscriptions/56e0d8e3-6731-4b1c-b01a-73b561b1cd47/cancel" \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
+    "externalTenantId": "workspace_123",
     "reason": "too_expensive",
     "feedback": "Would come back at a lower price point"
   }'
@@ -39,13 +44,36 @@ curl -X POST "https://api.crovver.com/api/public/subscriptions/sub_xyz/cancel" \
 </RequestExample>
 
 <ResponseExample>
-```json 200
+```json 200 Recurring subscription (access continues until period end)
 {
   "success": true,
   "data": {
-    "subscriptionId": "sub_xyz",
+    "subscriptionId": "56e0d8e3-6731-4b1c-b01a-73b561b1cd47",
+    "status": "pending_cancel",
+    "canceledAt": "2026-05-18T12:00:00Z",
+    "currentPeriodEnd": "2026-06-10T05:12:21.000Z"
+  }
+}
+```
+
+```json 200 Manual billing subscription (canceled immediately)
+{
+  "success": true,
+  "data": {
+    "subscriptionId": "56e0d8e3-6731-4b1c-b01a-73b561b1cd47",
     "status": "canceled",
-    "canceledAt": "2025-01-15T12:00:00Z"
+    "canceledAt": "2026-05-18T12:00:00Z",
+    "currentPeriodEnd": "2026-06-10T05:12:21.000Z"
+  }
+}
+```
+
+```json 400 Already canceled
+{
+  "success": false,
+  "error": {
+    "message": "Subscription is already canceled or pending cancellation",
+    "code": "ALREADY_CANCELED"
   }
 }
 ```

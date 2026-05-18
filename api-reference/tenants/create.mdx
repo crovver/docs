@@ -4,7 +4,7 @@ api: POST /api/public/tenants
 description: Create a new B2B tenant (workspace).
 ---
 
-Creates a new billing tenant in Crovver. For **B2B orgs**, call this when a new workspace/organization is created in your app. For **D2C**, tenants are auto-created on first checkout.
+Creates a new billing tenant in Crovver. For **B2B orgs**, call this when a new workspace/organization is created in your app. For **D2C**, tenants are auto-created on first checkout — this endpoint is not needed.
 
 ## Request Body
 
@@ -16,11 +16,11 @@ Creates a new billing tenant in Crovver. For **B2B orgs**, call this when a new 
   Display name for the tenant
 </ParamField>
 
-<ParamField body="ownerExternalUserId" type="string" required>
+<ParamField body="externalUserId" type="string" required>
   The external user ID of the billing owner
 </ParamField>
 
-<ParamField body="ownerEmail" type="string" required>
+<ParamField body="ownerEmail" type="string">
   Email address of the billing owner
 </ParamField>
 
@@ -28,19 +28,27 @@ Creates a new billing tenant in Crovver. For **B2B orgs**, call this when a new 
   Display name of the billing owner
 </ParamField>
 
+<ParamField body="slug" type="string">
+  URL-friendly slug. Auto-generated from `name` if not provided.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Arbitrary key-value pairs stored on the tenant.
+</ParamField>
+
 ## Authentication
 
-Requires a **secret key** (`Authorization: Bearer sk_live_...`).
+Requires a **secret key** (`Authorization: Bearer sk_live_...`). Restricted to B2B organizations.
 
 <RequestExample>
 ```bash cURL
-curl -X POST "https://api.crovver.com/api/public/tenants" \
+curl -X POST "https://app.crovver.com/api/public/tenants" \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
     "externalTenantId": "workspace_abc123",
     "name": "Acme Corp",
-    "ownerExternalUserId": "user_123",
+    "externalUserId": "user_123",
     "ownerEmail": "admin@acme.com",
     "ownerName": "Jane Smith"
   }'
@@ -52,12 +60,36 @@ curl -X POST "https://api.crovver.com/api/public/tenants" \
 {
   "success": true,
   "data": {
-    "id": "ten_crovver_xyz",
-    "externalTenantId": "workspace_abc123",
-    "name": "Acme Corp",
-    "slug": "acme-corp",
-    "createdAt": "2025-01-01T00:00:00Z"
+    "tenant": {
+      "id": "uuid",
+      "externalTenantId": "workspace_abc123",
+      "name": "Acme Corp",
+      "slug": "acme-corp",
+      "isActive": true,
+      "createdAt": "2025-01-01T00:00:00Z"
+    },
+    "owner": {
+      "id": "uuid",
+      "externalUserId": "user_123",
+      "email": "admin@acme.com",
+      "name": "Jane Smith"
+    },
+    "message": "Tenant created successfully"
   }
+}
+```
+
+```json 403 D2C organization
+{
+  "success": false,
+  "error": "This endpoint is restricted to B2B organizations."
+}
+```
+
+```json 409 Duplicate
+{
+  "success": false,
+  "error": "Tenant ID or Slug already exists"
 }
 ```
 </ResponseExample>

@@ -1,10 +1,10 @@
 ---
 title: Get Credit Balance
 api: GET /api/public/credits/balance
-description: Fetch the current credit balance for all pools on a tenant's active plan.
+description: Fetch the current credit balance for all pools on a tenant's active subscription.
 ---
 
-Returns a breakdown of base (plan-included) and add-on credits remaining per pool, along with expiry and limit info.
+Returns a breakdown of base (plan-included) and add-on credits remaining per pool, along with expiry and limit info. Returns an empty object `{}` if the tenant has no active subscription.
 
 ## Query Parameters
 
@@ -12,16 +12,22 @@ Returns a breakdown of base (plan-included) and add-on credits remaining per poo
   The external tenant ID from your application
 </ParamField>
 
+<ParamField query="publicKey" type="string">
+  Your public key (`pk_live_...`). Alternative to the `Authorization` bearer header — use one or the other.
+</ParamField>
+
 ## Authentication
 
-Requires a **public key** (`x-public-key: pk_live_...`) or **secret key** (`Authorization: Bearer sk_live_...`).
+Requires one of:
+- **Bearer header** — `Authorization: Bearer sk_live_...` (secret key, server-side)
+- **Query param** — `?publicKey=pk_live_...` (public key, client-side)
 
 ## Response
 
-Returns an object keyed by `pool_key`. Returns an empty object `{}` if the tenant has no active subscription.
+Returns an object keyed by `pool_key`.
 
 <ResponseField name="data.[poolKey].poolKey" type="string">
-  The pool key (e.g., `api_calls`, `ai_tokens`)
+  The pool key (e.g. `api_calls`, `ai_tokens`)
 </ResponseField>
 
 <ResponseField name="data.[poolKey].displayName" type="string">
@@ -49,7 +55,7 @@ Returns an object keyed by `pool_key`. Returns an empty object `{}` if the tenan
 </ResponseField>
 
 <ResponseField name="data.[poolKey].nextExpiry" type="string | null">
-  ISO timestamp of the earliest upcoming credit expiry, or `null` if credits never expire
+  ISO timestamp of the earliest upcoming credit expiry, or `null` if none
 </ResponseField>
 
 <ResponseField name="data.[poolKey].usagePercent" type="integer">
@@ -57,9 +63,13 @@ Returns an object keyed by `pool_key`. Returns an empty object `{}` if the tenan
 </ResponseField>
 
 <RequestExample>
-```bash cURL
-curl "https://api.crovver.com/api/public/credits/balance?tenantId=workspace_123" \
-  -H "x-public-key: pk_live_..."
+```bash cURL (public key)
+curl "https://app.crovver.com/api/public/credits/balance?tenantId=workspace_123&publicKey=pk_live_..."
+```
+
+```bash cURL (secret key)
+curl "https://app.crovver.com/api/public/credits/balance?tenantId=workspace_123" \
+  -H "Authorization: Bearer sk_live_..."
 ```
 </RequestExample>
 
@@ -78,17 +88,6 @@ curl "https://api.crovver.com/api/public/credits/balance?tenantId=workspace_123"
       "limitBehavior": "soft",
       "nextExpiry": "2025-02-01T00:00:00Z",
       "usagePercent": 15
-    },
-    "ai_tokens": {
-      "poolKey": "ai_tokens",
-      "displayName": "AI Tokens",
-      "baseRemaining": 0,
-      "addonRemaining": 200,
-      "total": 200,
-      "limit": 500,
-      "limitBehavior": "hard",
-      "nextExpiry": "2025-01-20T00:00:00Z",
-      "usagePercent": 60
     }
   }
 }

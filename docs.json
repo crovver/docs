@@ -213,6 +213,12 @@
       }
     ]
   },
+  "api": {
+    "baseUrl": ["https://app.crovver.com", "http://localhost:3000"],
+    "auth": {
+      "method": "bearer"
+    }
+  },
   "footer": {
     "socials": {
       "github": "https://github.com/crovver"

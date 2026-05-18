@@ -4,44 +4,52 @@ api: POST /api/public/checkout
 description: Create a payment provider checkout session for a tenant.
 ---
 
-Creates a checkout session with the configured payment provider (e.g., Stripe) and returns a URL to redirect the user to.
+Creates a checkout session with the configured payment provider (Stripe, Khalti, eSewa) and returns a URL to redirect the user to.
 
 ## Request Body
-
-<ParamField body="requestingUserId" type="string" required>
-  The user ID from your application (required for D2C; used as `externalTenantId`)
-</ParamField>
-
-<ParamField body="requestingTenantId" type="string">
-  The workspace/tenant ID (required for B2B orgs)
-</ParamField>
 
 <ParamField body="planId" type="string" required>
   The Crovver plan ID to subscribe to
 </ParamField>
 
-<ParamField body="provider" type="string" required>
-  Payment provider name (e.g., `stripe`, `khalti`, `esewa`)
+<ParamField body="externalUserId" type="string">
+  The user ID from your application. Required for D2C orgs — becomes the tenant identity.
 </ParamField>
 
-<ParamField body="totalCapacityUnits" type="number">
-  Number of seats to purchase (seat-based plans only)
+<ParamField body="externalTenantId" type="string">
+  The workspace/tenant ID. Required for B2B orgs.
+</ParamField>
+
+<ParamField body="provider" type="string">
+  Payment provider name (`stripe`, `khalti`, `esewa`). Defaults to the org's configured provider.
+</ParamField>
+
+<ParamField body="currency" type="string">
+  3-letter ISO currency code (e.g. `USD`, `NPR`). Defaults to the plan's first active price currency.
+</ParamField>
+
+<ParamField body="totalCapcityUnits" type="integer">
+  Number of seats to purchase. Required for seat-based plans.
 </ParamField>
 
 <ParamField body="userEmail" type="string">
-  Pre-fills the payment provider's checkout form
+  Pre-fills the payment provider's checkout form with this email.
 </ParamField>
 
-<ParamField body="successUrl" type="string" required>
-  URL to redirect to after successful payment
+<ParamField body="userName" type="string">
+  Pre-fills the payment provider's checkout form with this name.
 </ParamField>
 
-<ParamField body="cancelUrl" type="string" required>
-  URL to redirect to if the user cancels checkout
+<ParamField body="successUrl" type="string">
+  URL to redirect to after successful payment. Defaults to the org's configured success URL.
+</ParamField>
+
+<ParamField body="cancelUrl" type="string">
+  URL to redirect to if the user cancels checkout. Defaults to the org's configured cancel URL.
 </ParamField>
 
 <ParamField body="metadata" type="object">
-  Arbitrary key-value pairs passed through to the payment provider
+  Arbitrary key-value pairs passed through to the payment provider.
 </ParamField>
 
 ## Authentication
@@ -49,13 +57,27 @@ Creates a checkout session with the configured payment provider (e.g., Stripe) a
 Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key` + `?orgId=`).
 
 <RequestExample>
-```bash cURL
-curl -X POST "https://api.crovver.com/api/public/checkout" \
+```bash cURL (D2C)
+curl -X POST "https://app.crovver.com/api/public/checkout" \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "requestingUserId": "user_123",
-    "planId": "plan_pro",
+    "externalUserId": "user_123",
+    "planId": "7b79a62c-e82e-405f-9719-7314f3d6e7f2",
+    "provider": "stripe",
+    "successUrl": "https://app.com/welcome",
+    "cancelUrl": "https://app.com/pricing"
+  }'
+```
+
+```bash cURL (B2B)
+curl -X POST "https://app.crovver.com/api/public/checkout" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalTenantId": "company_acme_123",
+    "externalUserId": "user_admin_456",
+    "planId": "7b79a62c-e82e-405f-9719-7314f3d6e7f2",
     "provider": "stripe",
     "successUrl": "https://app.com/welcome",
     "cancelUrl": "https://app.com/pricing"

@@ -1,24 +1,30 @@
 ---
 title: Check Feature Access
-api: GET /api/public/can-access
-description: Check if a tenant has access to a specific feature.
+api: POST /api/public/can-access
+description: Check if a tenant has access to a specific feature or has sufficient credits.
+authMethod: "none"
 ---
 
 Returns whether the tenant's active plan includes the requested feature key.
+If the feature is backed by a credit pool, also returns the available credit balance.
 
-## Query Parameters
+## Request Body
 
-<ParamField query="publicKey" type="string" required>
-  Your public key (`pk_live_...`)
+<ParamField body="requestingEntityId" type="string" required>
+  The external tenant ID from your application
 </ParamField>
 
-<ParamField query="featureKey" type="string" required>
+<ParamField body="featureKey" type="string" required>
   The feature key to check (must match a key in `plan.features`)
 </ParamField>
 
-<ParamField query="requestingEntityId" type="string" required>
-  The external tenant ID from your application
+<ParamField body="amount" type="integer">
+  For credit-backed features: number of credits needed. Defaults to `0` (balance check only).
 </ParamField>
+
+## Authentication
+
+Requires a **public key** (`x-public-key: pk_live_...`) or **secret key** (`Authorization: Bearer sk_live_...`).
 
 ## Response
 
@@ -34,9 +40,34 @@ Returns whether the tenant's active plan includes the requested feature key.
   The tenant ID that was checked
 </ResponseField>
 
+<ResponseField name="data.credits" type="object">
+  Only present when the feature maps to a credit pool.
+  <Expandable>
+    <ResponseField name="available" type="integer">Credits remaining in the pool</ResponseField>
+    <ResponseField name="sufficient" type="boolean">Whether available credits meet the requested `amount`</ResponseField>
+  </Expandable>
+</ResponseField>
+
 <RequestExample>
 ```bash cURL
-curl "https://api.crovver.com/api/public/can-access?publicKey=pk_live_...&featureKey=advanced_analytics&requestingEntityId=workspace_123"
+curl -X POST "https://app.crovver.com/api/public/can-access" \
+  -H "x-public-key: pk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestingEntityId": "workspace_123",
+    "featureKey": "advanced_analytics"
+  }'
+```
+
+```bash cURL (credit-backed feature)
+curl -X POST "https://app.crovver.com/api/public/can-access" \
+  -H "x-public-key: pk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestingEntityId": "workspace_123",
+    "featureKey": "api_calls",
+    "amount": 10
+  }'
 ```
 </RequestExample>
 
@@ -48,6 +79,21 @@ curl "https://api.crovver.com/api/public/can-access?publicKey=pk_live_...&featur
     "canAccess": true,
     "featureKey": "advanced_analytics",
     "requestingEntityId": "workspace_123"
+  }
+}
+```
+
+```json 200 Credit-backed feature
+{
+  "success": true,
+  "data": {
+    "canAccess": true,
+    "featureKey": "api_calls",
+    "requestingEntityId": "workspace_123",
+    "credits": {
+      "available": 850,
+      "sufficient": true
+    }
   }
 }
 ```

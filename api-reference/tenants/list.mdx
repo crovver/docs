@@ -1,42 +1,96 @@
 ---
-title: List Tenants
+title: Get Tenant(s)
 api: GET /api/public/tenants
-description: Get all tenants for an organization.
+description: Retrieve tenants for your organization.
 ---
 
-Returns all tenants associated with the organization.
+Returns tenant information in three modes depending on which query parameters you provide:
+
+- **No params** → returns all tenants in your org.
+- **`externalTenantId`** → returns a single tenant with its members list.
+- **`externalUserId`** → returns all tenants that user belongs to.
 
 ## Query Parameters
 
-<ParamField query="publicKey" type="string">
-  Your public key (alternative to Authorization header)
+<ParamField query="externalTenantId" type="string">
+  The tenant ID from your SaaS application. Returns a single tenant with its members.
+</ParamField>
+
+<ParamField query="externalUserId" type="string">
+  The user ID from your SaaS application. Returns all tenants this user belongs to.
 </ParamField>
 
 ## Authentication
 
-Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **public key**.
+Requires a **secret key** (`Authorization: Bearer sk_live_...` or `sk_test_...`).
+Public keys (`pk_*`) are **not** accepted by this endpoint.
 
 <RequestExample>
-```bash cURL
+```bash List all tenants
 curl "https://api.crovver.com/api/public/tenants" \
+  -H "Authorization: Bearer sk_live_..."
+```
+
+```bash Fetch by tenant ID
+curl "https://api.crovver.com/api/public/tenants?externalTenantId=company_acme_123" \
+  -H "Authorization: Bearer sk_live_..."
+```
+
+```bash Fetch by user ID
+curl "https://api.crovver.com/api/public/tenants?externalUserId=user_admin_456" \
   -H "Authorization: Bearer sk_live_..."
 ```
 </RequestExample>
 
 <ResponseExample>
-```json 200
+```json 200 (all tenants / by externalUserId)
 {
   "success": true,
-  "data": [
-    {
-      "id": "ten_crovver_xyz",
-      "externalTenantId": "workspace_abc123",
-      "name": "Acme Corp",
+  "data": {
+    "tenants": [
+      {
+        "id": "uuid",
+        "externalTenantId": "company_acme_123",
+        "name": "Acme Corporation",
+        "slug": "acme-corp",
+        "isActive": true,
+        "metadata": {},
+        "createdAt": "2025-01-01T00:00:00Z",
+        "updatedAt": "2025-01-01T00:00:00Z"
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+```json 200 (by externalTenantId)
+{
+  "success": true,
+  "data": {
+    "tenant": {
+      "id": "uuid",
+      "externalTenantId": "company_acme_123",
+      "name": "Acme Corporation",
       "slug": "acme-corp",
       "isActive": true,
-      "createdAt": "2025-01-01T00:00:00Z"
+      "metadata": {},
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-01T00:00:00Z"
+    },
+    "members": [
+      {
+        "externalUserId": "user_admin_456",
+        "email": "admin@acmecorp.com",
+        "name": "Admin User",
+        "role": "owner"
+      }
+    ],
+    "organization": {
+      "id": "uuid",
+      "name": "My SaaS"
     }
-  ]
+  }
 }
 ```
 </ResponseExample>
