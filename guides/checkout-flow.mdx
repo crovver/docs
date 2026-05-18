@@ -83,7 +83,7 @@ x-service-key: <CROVVER_SERVICE_KEY>
 
 ## Step 5 — Stripe Webhook
 
-After payment, Stripe calls your webhook. Crovver processes `checkout.session.completed` and activates the subscription. The subscription status moves from `pending` → `active` (or `trialing` if the plan has a trial).
+After payment, Stripe calls your webhook. Crovver processes `checkout.session.completed` and activates the subscription. The subscription status moves from `pending` → `active` (or `trial` if the plan has a trial).
 
 ## Step 6 — Back in Your App
 

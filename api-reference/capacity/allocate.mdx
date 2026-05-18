@@ -1,0 +1,102 @@
+---
+title: Allocate Seat
+api: POST /api/public/capacity/allocate
+description: Record a seat assignment for a tenant user.
+---
+
+Records a seat allocation in Crovver when a user is added to a workspace. This is a lightweight audit operation — it does not trigger billing automatically.
+
+If the tenant is already at capacity, returns proration info for confirmation. If `confirmProration: true` is passed and capacity would be exceeded on a seat-based plan, returns a checkout URL to pay for the additional seat.
+
+The call is idempotent per `externalUserId` — re-allocating the same user updates their record rather than creating a duplicate.
+
+## Request Body
+
+<ParamField body="requestingEntityId" type="string" required>
+  The external tenant ID from your application
+</ParamField>
+
+<ParamField body="externalUserId" type="string">
+  The user being allocated a seat. If omitted, a system-generated ID is used (non-idempotent).
+</ParamField>
+
+<ParamField body="email" type="string">
+  The user's email address (stored for audit purposes)
+</ParamField>
+
+<ParamField body="name" type="string">
+  The user's display name
+</ParamField>
+
+<ParamField body="confirmProration" type="boolean">
+  Pass `true` to confirm an over-capacity allocation and proceed to checkout.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Optional context stored on the allocation record.
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key`).
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://app.crovver.com/api/public/capacity/allocate" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestingEntityId": "workspace_123",
+    "externalUserId": "user_456",
+    "email": "user@acme.com",
+    "name": "Jane Smith"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Seat allocated
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "Seat allocation recorded successfully",
+    "capacity": {
+      "activeCount": 6,
+      "capacityUnits": 10,
+      "exceeded": false
+    }
+  }
+}
+```
+
+```json 200 Proration required (at capacity)
+{
+  "success": true,
+  "data": {
+    "requiresProration": true,
+    "proration": {
+      "amount": 1.75,
+      "currency": "USD",
+      "description": "Prorated charge for 1 additional seat",
+      "daysRemaining": 17,
+      "totalDaysInPeriod": 30,
+      "currentSeats": 10,
+      "newSeats": 11
+    },
+    "message": "Adding this user will exceed your current capacity. Confirm to upgrade and charge the prorated amount."
+  }
+}
+```
+
+```json 200 Checkout required (confirmed)
+{
+  "success": true,
+  "data": {
+    "requiresCheckout": true,
+    "message": "Capacity upgrade requires payment. Use the proration-checkout endpoint to create checkout session.",
+    "newCapacity": 11
+  }
+}
+```
+</ResponseExample>

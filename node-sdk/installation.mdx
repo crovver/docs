@@ -63,7 +63,7 @@ for (const plan of plans) {
 ```typescript
 const { subscriptions } = await crovver.getSubscriptions("workspace_abc123");
 
-// status: active | trialing | canceled | past_due | ...
+// status: active | trial | canceled | past_due | ...
 console.log(subscriptions[0].status);
 
 // Cancel a subscription

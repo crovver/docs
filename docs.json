@@ -159,12 +159,6 @@
             "group": "Add-ons",
             "icon": "package-plus",
             "pages": [
-              "api-reference/addons/list",
-              "api-reference/addons/create",
-              "api-reference/addons/update",
-              "api-reference/addons/delete",
-              "api-reference/addons/pricing",
-              "api-reference/addons/plan-assignment",
               "api-reference/addons/tenant-available",
               "api-reference/addons/tenant-purchase",
               "api-reference/addons/tenant-active"
@@ -176,7 +170,6 @@
             "pages": [
               "api-reference/capacity/allocate",
               "api-reference/capacity/count",
-              "api-reference/capacity/remove",
               "api-reference/capacity/proration-checkout"
             ]
           },
@@ -214,9 +207,12 @@
     ]
   },
   "api": {
-    "baseUrl": ["https://app.crovver.com", "http://localhost:3000"],
-    "auth": {
-      "method": "bearer"
+    "mdx": {
+      "server": ["https://app.crovver.com", "http://localhost:3000"],
+      "auth": {
+        "method": "bearer",
+        "name": "Authorization"
+      }
     }
   },
   "footer": {

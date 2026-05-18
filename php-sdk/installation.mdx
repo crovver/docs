@@ -63,7 +63,7 @@ foreach ($plans->plans as $plan) {
 $result = $client->getSubscriptions('workspace_abc123');
 
 foreach ($result->subscriptions as $sub) {
-    echo $sub->status; // active, trialing, canceled, past_due...
+    echo $sub->status; // active, trial, canceled, past_due...
 }
 ```
 

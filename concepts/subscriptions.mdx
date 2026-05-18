@@ -10,7 +10,7 @@ A **Subscription** is the record that links a tenant to a plan. It tracks billin
 | Status | Description |
 |---|---|
 | `pending` | Created but not yet activated (awaiting payment confirmation) |
-| `trialing` | In a free trial period |
+| `trial` | In a free trial period |
 | `active` | Paid and active |
 | `past_due` | Payment failed — grace period |
 | `canceled` | Canceled by tenant or admin |
@@ -20,7 +20,7 @@ A **Subscription** is the record that links a tenant to a plan. It tracks billin
 
 ```mermaid
 flowchart LR
-    pending --> trialing --> active --> past_due --> canceled
+    pending --> trial --> active --> past_due --> canceled
     pending --> active
     past_due --> expired
 ```
@@ -29,8 +29,8 @@ Transitions are triggered by Stripe webhook events:
 
 | Event | Transition |
 |---|---|
-| `checkout.session.completed` | `pending` → `active` or `trialing` |
-| `customer.subscription.updated` | `trialing` → `active` |
+| `checkout.session.completed` | `pending` → `active` or `trial` |
+| `customer.subscription.updated` | `trial` → `active` |
 | `invoice.payment_failed` | `active` → `past_due` |
 | `customer.subscription.deleted` | any → `canceled` |
 
@@ -60,7 +60,7 @@ Every subscription status change is written to `subscription_events`. This gives
 ```json
 {
   "event_type": "subscription.activated",
-  "previous_status": "trialing",
+  "previous_status": "trial",
   "new_status": "active",
   "occurred_at": "2025-02-01T00:00:00Z",
   "metadata": {

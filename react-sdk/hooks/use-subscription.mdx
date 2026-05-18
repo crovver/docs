@@ -32,7 +32,7 @@ function Dashboard() {
   subscription: SubscriptionStatus | null;
   isLoading: boolean;
   error: Error | null;
-  isActive: boolean;                     // true if status is "active" or "trialing"
+  isActive: boolean;                     // true if status is "active" or "trial"
   plan: PlanDetails | null;
   tenant: TenantDetails | null;
   subscriptionDetails: SubscriptionDetails | null;
@@ -45,7 +45,7 @@ function Dashboard() {
 ```typescript
 {
   active: boolean;
-  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'expired' | 'none';
+  status: 'active' | 'trial' | 'past_due' | 'canceled' | 'expired' | 'none';
   tenant: {
     id: string;
     name: string;

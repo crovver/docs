@@ -1,0 +1,55 @@
+---
+title: List Active Add-ons
+api: GET /api/public/tenants/{tenantId}/addons/active
+description: Get a tenant's currently active add-on credit balances.
+authMethod: "none"
+---
+
+Returns add-on credit ledger entries that still have credits remaining (not exhausted, not expired), grouped by pool key.
+
+Returns an empty array `[]` if the tenant has no active subscription or no purchased add-ons.
+
+## Path Parameters
+
+<ParamField path="tenantId" type="string" required>
+  The external tenant ID from your application
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="publicKey" type="string">
+  Your public key (`pk_live_...`). Alternative to the `Authorization` bearer header.
+</ParamField>
+
+## Authentication
+
+Requires a **public key** (`?publicKey=pk_live_...`) or **secret key** (`Authorization: Bearer sk_live_...`).
+
+<RequestExample>
+```bash cURL
+curl "https://app.crovver.com/api/public/tenants/workspace_123/addons/active?publicKey=pk_live_..."
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": [
+    {
+      "pool_key": "api_calls",
+      "addon_remaining": "500",
+      "active_addon_grants": "1",
+      "next_addon_expiry": "2026-06-10T05:12:21.000Z"
+    }
+  ]
+}
+```
+
+```json 200 No active add-ons
+{
+  "success": true,
+  "data": []
+}
+```
+</ResponseExample>

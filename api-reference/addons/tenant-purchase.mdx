@@ -1,0 +1,95 @@
+---
+title: Purchase Add-on
+api: POST /api/public/tenants/{tenantId}/addons/purchase
+description: Initiate a checkout session for a tenant to purchase an add-on.
+---
+
+Creates a Stripe checkout session for the tenant to purchase an add-on. Credits are granted automatically after payment confirmation via webhook (`event_type: addon_purchase`).
+
+The call is idempotent — passing the same `idempotencyKey` twice returns the original result without creating a duplicate checkout.
+
+## Path Parameters
+
+<ParamField path="tenantId" type="string" required>
+  The external tenant ID from your application
+</ParamField>
+
+## Request Body
+
+<ParamField body="addonId" type="string" required>
+  The add-on ID to purchase (from the available add-ons list)
+</ParamField>
+
+<ParamField body="currency" type="string" required>
+  3-letter ISO currency code. Must match the tenant's subscription currency.
+</ParamField>
+
+<ParamField body="idempotencyKey" type="string" required>
+  Unique key for this purchase event. Duplicate calls with the same key return the original result.
+</ParamField>
+
+<ParamField body="successUrl" type="string">
+  URL to redirect to after payment. Defaults to the org's configured success URL.
+</ParamField>
+
+<ParamField body="cancelUrl" type="string">
+  URL to redirect to if the user cancels. Defaults to the org's configured cancel URL.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Optional context stored on the purchase record.
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key`).
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://app.crovver.com/api/public/tenants/workspace_123/addons/purchase" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "addonId": "uuid",
+    "currency": "USD",
+    "idempotencyKey": "addon-purchase-1778423112701",
+    "successUrl": "https://app.com/settings?addon=purchased",
+    "cancelUrl": "https://app.com/settings"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Checkout created
+{
+  "success": true,
+  "data": {
+    "purchaseId": "uuid",
+    "checkoutUrl": "https://checkout.stripe.com/pay/cs_...",
+    "requiresPayment": true,
+    "addonName": "API Call Pack",
+    "creditQty": 500,
+    "amount": 5,
+    "currency": "USD"
+  }
+}
+```
+
+```json 200 Already processed (idempotent replay)
+{
+  "success": true,
+  "data": {
+    "purchaseId": "uuid",
+    "checkoutUrl": "https://checkout.stripe.com/pay/cs_...",
+    "alreadyProcessed": true
+  }
+}
+```
+
+```json 422 Currency mismatch
+{
+  "success": false,
+  "error": "Currency mismatch: subscription uses NPR"
+}
+```
+</ResponseExample>

@@ -7,6 +7,10 @@ authMethod: "none"
 
 Returns the active subscription, plan details, and tenant info for the given tenant.
 
+## Authentication
+
+Pass your public key as a query parameter (`?publicKey=pk_live_...`). No bearer token required or accepted.
+
 ## Request
 
 <ParamField query="publicKey" type="string" required>
@@ -23,8 +27,8 @@ Returns the active subscription, plan details, and tenant info for the given ten
 
 <ResponseField name="data" type="object">
   <Expandable>
-    <ResponseField name="active" type="boolean">Whether the subscription is active or trialing</ResponseField>
-    <ResponseField name="status" type="string">One of: `active`, `trialing`, `past_due`, `canceled`, `expired`, `none`</ResponseField>
+    <ResponseField name="active" type="boolean">Whether the subscription is active or trial</ResponseField>
+    <ResponseField name="status" type="string">One of: `active`, `trial`, `past_due`, `canceled`, `expired`, `none`</ResponseField>
     <ResponseField name="tenant" type="object">
       <Expandable>
         <ResponseField name="id" type="string" />
@@ -57,7 +61,7 @@ Returns the active subscription, plan details, and tenant info for the given ten
 
 <RequestExample>
 ```bash cURL
-curl "https://api.crovver.com/api/public/subscriptions/status?publicKey=pk_live_...&tenantId=workspace_123"
+curl "https://app.crovver.com/api/public/subscriptions/status?publicKey=pk_live_...&tenantId=workspace_123"
 ```
 </RequestExample>
 

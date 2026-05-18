@@ -1,0 +1,48 @@
+---
+title: Get Seat Count
+api: POST /api/public/capacity/count
+description: Get the current active seat count and capacity for a tenant.
+---
+
+Returns the number of active seat allocations for a tenant, their total purchased capacity, and utilization percentage.
+
+## Request Body
+
+<ParamField body="requestingEntityId" type="string" required>
+  The external tenant ID from your application
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key`).
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://app.crovver.com/api/public/capacity/count" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "requestingEntityId": "workspace_123" }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "activeCount": 8,
+    "capacityUnits": 10,
+    "utilizationPercentage": 80,
+    "billingMode": "recurring",
+    "exceeded": false
+  }
+}
+```
+
+```json 404 No active subscription
+{
+  "success": false,
+  "error": "No active subscription found for this tenant"
+}
+```
+</ResponseExample>

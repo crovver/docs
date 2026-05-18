@@ -1,0 +1,62 @@
+---
+title: List Available Add-ons
+api: GET /api/public/tenants/{tenantId}/addons/available
+description: Get add-ons the tenant can purchase for their current plan and currency.
+authMethod: "none"
+---
+
+Returns add-ons that are assigned to the tenant's active plan, priced in their subscription currency, and have a corresponding credit pool on the plan. Also includes the tenant's current balance for each pool.
+
+Returns an empty array `[]` if the tenant has no active subscription.
+
+## Path Parameters
+
+<ParamField path="tenantId" type="string" required>
+  The external tenant ID from your application
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="publicKey" type="string">
+  Your public key (`pk_live_...`). Alternative to the `Authorization` bearer header.
+</ParamField>
+
+## Authentication
+
+Requires a **public key** (`?publicKey=pk_live_...`) or **secret key** (`Authorization: Bearer sk_live_...`).
+
+<RequestExample>
+```bash cURL
+curl "https://app.crovver.com/api/public/tenants/workspace_123/addons/available?publicKey=pk_live_..."
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "pool_key": "api_calls",
+      "display_name": "API Call Pack",
+      "description": "500 additional API calls",
+      "credit_qty": 500,
+      "expiry_type": "period_end",
+      "expiry_days": null,
+      "currency": "USD",
+      "amount": "5.00",
+      "current_balance": 0,
+      "pool_limit": 10000
+    }
+  ]
+}
+```
+
+```json 200 No active subscription
+{
+  "success": true,
+  "data": []
+}
+```
+</ResponseExample>
