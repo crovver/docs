@@ -169,6 +169,8 @@
             "icon": "users",
             "pages": [
               "api-reference/capacity/allocate",
+              "api-reference/capacity/bulk-allocate",
+              "api-reference/capacity/allocations",
               "api-reference/capacity/count",
               "api-reference/capacity/proration-checkout"
             ]

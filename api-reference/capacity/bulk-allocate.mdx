@@ -1,0 +1,172 @@
+---
+title: Bulk Allocate Seats
+api: POST /api/public/capacity/bulk-allocate
+description: Allocate up to 100 users to a tenant's subscription in one atomic operation.
+---
+
+Inserts multiple seat allocations in a single call, up to the subscription's current `capacity_units`. No proration is triggered — if the batch would exceed capacity, users are split into `allocated` and `rejected` lists. Upgrade capacity first via [Proration Checkout](/api-reference/capacity/proration-checkout), then retry the rejected IDs.
+
+Already-active users are silently skipped and returned in `skipped` — the call is safe to retry.
+
+<Warning>
+  This endpoint is **never retried automatically** by the SDK to prevent duplicate allocations on network errors. Implement your own retry logic using the `skipped` list for idempotency.
+</Warning>
+
+## Request Body
+
+<ParamField body="requestingEntityId" type="string" required>
+  The external tenant ID from your application.
+</ParamField>
+
+<ParamField body="users" type="BulkAllocateSeatUser[]" required>
+  List of users to allocate. Maximum **100 users per request**. Each entry must have a unique `externalUserId` — duplicates within the same batch are rejected.
+</ParamField>
+
+<ParamField body="users[].externalUserId" type="string" required>
+  Your application's user ID. Must be non-empty and unique within the batch.
+</ParamField>
+
+<ParamField body="users[].email" type="string">
+  User's email address (stored for audit and display purposes).
+</ParamField>
+
+<ParamField body="users[].name" type="string">
+  User's display name.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Arbitrary key-value pairs attached to every allocation created in this batch.
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key`).
+
+## Response
+
+Returns HTTP **200** when all users were allocated or skipped. Returns HTTP **207 Multi-Status** when at least one user was rejected due to capacity limits.
+
+| Field | Type | Description |
+|---|---|---|
+| `allocated` | `string[]` | `externalUserId` values inserted this call |
+| `skipped` | `string[]` | Already active — not re-inserted |
+| `rejected` | `string[]` | Would exceed `capacity_units` — not inserted |
+| `capacity.activeCount` | `number` | Active seat count after this operation |
+| `capacity.capacityUnits` | `number` | Total seat limit on the subscription |
+| `message` | `string` | Present when users were rejected — explains the limit |
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://app.crovver.com/api/public/capacity/bulk-allocate" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestingEntityId": "workspace_123",
+    "users": [
+      { "externalUserId": "user_1", "email": "alice@acme.com", "name": "Alice" },
+      { "externalUserId": "user_2", "email": "bob@acme.com",   "name": "Bob"   },
+      { "externalUserId": "user_3", "email": "carol@acme.com", "name": "Carol" }
+    ],
+    "metadata": { "addedBy": "admin_789" }
+  }'
+```
+
+```typescript Node.js SDK
+const result = await crovver.capacity.bulkAllocate({
+  requestingEntityId: "workspace_123",
+  users: [
+    { externalUserId: "user_1", email: "alice@acme.com", name: "Alice" },
+    { externalUserId: "user_2", email: "bob@acme.com",   name: "Bob"   },
+    { externalUserId: "user_3", email: "carol@acme.com", name: "Carol" },
+  ],
+  metadata: { addedBy: "admin_789" },
+});
+
+console.log(`Allocated: ${result.allocated.length}`);
+console.log(`Skipped:   ${result.skipped.length}`);
+console.log(`Rejected:  ${result.rejected.length}`);
+
+if (result.rejected.length > 0) {
+  // Upgrade capacity, then retry result.rejected
+  console.warn(result.message);
+}
+```
+
+```php PHP SDK
+use Crovver\Types\BulkAllocateSeatsRequest;
+use Crovver\Types\BulkAllocateSeatUser;
+
+$result = $client->bulkAllocateSeats(new BulkAllocateSeatsRequest(
+    requestingEntityId: 'workspace_123',
+    users: [
+        new BulkAllocateSeatUser('user_1', 'alice@acme.com', 'Alice'),
+        new BulkAllocateSeatUser('user_2', 'bob@acme.com',   'Bob'),
+        new BulkAllocateSeatUser('user_3', 'carol@acme.com', 'Carol'),
+    ],
+    metadata: ['addedBy' => 'admin_789'],
+));
+
+echo count($result->allocated) . ' allocated';
+echo count($result->skipped)   . ' skipped';
+echo count($result->rejected)  . ' rejected';
+
+if (count($result->rejected) > 0) {
+    // Upgrade capacity, then retry $result->rejected
+    echo $result->message;
+}
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 All allocated
+{
+  "success": true,
+  "data": {
+    "allocated": ["user_1", "user_2", "user_3"],
+    "skipped": [],
+    "rejected": [],
+    "capacity": {
+      "activeCount": 8,
+      "capacityUnits": 10
+    }
+  }
+}
+```
+
+```json 207 Partial — capacity limit reached
+{
+  "success": true,
+  "data": {
+    "allocated": ["user_1", "user_2"],
+    "skipped": [],
+    "rejected": ["user_3"],
+    "capacity": {
+      "activeCount": 10,
+      "capacityUnits": 10
+    },
+    "message": "2 user(s) allocated. 1 user(s) rejected — capacity limit of 10 reached."
+  }
+}
+```
+
+```json 400 Duplicate IDs in batch
+{
+  "success": false,
+  "error": "Duplicate externalUserId values found within the batch"
+}
+```
+
+```json 400 Batch too large
+{
+  "success": false,
+  "error": "Batch size exceeds limit. Maximum 100 users per request."
+}
+```
+
+```json 404 No active subscription
+{
+  "success": false,
+  "error": "No active subscription found for this tenant"
+}
+```
+</ResponseExample>

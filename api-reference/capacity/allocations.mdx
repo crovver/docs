@@ -1,0 +1,166 @@
+---
+title: List Allocations
+api: GET /api/public/capacity/allocations
+description: List users allocated to a tenant's active subscription, with capacity summary and pagination.
+---
+
+Returns the seat allocations for a tenant's active subscription. Filter by status, paginate through results, and inspect real-time capacity utilization.
+
+## Query Parameters
+
+<ParamField query="requestingEntityId" type="string" required>
+  The external tenant ID from your application.
+</ParamField>
+
+<ParamField query="status" type="string" default="active">
+  Filter allocations by status. One of:
+  - `active` — currently allocated users (default)
+  - `removed` — deallocated users
+  - `all` — both active and removed
+</ParamField>
+
+<ParamField query="page" type="number" default="1">
+  1-based page number.
+</ParamField>
+
+<ParamField query="limit" type="number" default="50">
+  Number of results per page. Maximum **100**.
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key`).
+
+## Response
+
+| Field | Type | Description |
+|---|---|---|
+| `allocations` | `AllocationUser[]` | Paginated list of allocated users |
+| `allocations[].externalUserId` | `string` | Your app's user ID |
+| `allocations[].email` | `string \| null` | User's email |
+| `allocations[].name` | `string \| null` | User's display name |
+| `allocations[].status` | `"active" \| "removed"` | Current allocation status |
+| `allocations[].allocatedAt` | `string` | ISO 8601 timestamp of when the seat was assigned |
+| `allocations[].removedAt` | `string \| null` | ISO 8601 timestamp of deallocation (if removed) |
+| `allocations[].metadata` | `object` | Metadata stored at allocation time |
+| `capacity.activeCount` | `number` | Current active seat count |
+| `capacity.capacityUnits` | `number` | Total seat limit on the subscription |
+| `capacity.utilizationPercentage` | `number` | `activeCount / capacityUnits × 100` |
+| `capacity.exceeded` | `boolean` | Whether active seats exceed the limit |
+| `pagination.total` | `number` | Total matching records |
+| `pagination.page` | `number` | Current page |
+| `pagination.totalPages` | `number` | Total pages |
+| `pagination.hasNextPage` | `boolean` | Whether a next page exists |
+| `pagination.hasPreviousPage` | `boolean` | Whether a previous page exists |
+
+<RequestExample>
+```bash cURL
+curl "https://app.crovver.com/api/public/capacity/allocations?requestingEntityId=workspace_123&status=active&page=1&limit=50" \
+  -H "Authorization: Bearer sk_live_..."
+```
+
+```typescript Node.js SDK
+const result = await crovver.capacity.getAllocations({
+  requestingEntityId: "workspace_123",
+});
+
+result.allocations.forEach((user) => {
+  console.log(`${user.externalUserId} — ${user.email} (${user.status})`);
+});
+
+const { activeCount, capacityUnits, utilizationPercentage, exceeded } = result.capacity;
+console.log(`${activeCount} / ${capacityUnits} seats (${utilizationPercentage}%)`);
+
+// Page through all users including removed
+const page2 = await crovver.capacity.getAllocations({
+  requestingEntityId: "workspace_123",
+  status: "all",
+  page: 2,
+  limit: 25,
+});
+```
+
+```php PHP SDK
+// Active users, first page (default)
+$result = $client->getAllocations('workspace_123');
+
+foreach ($result->allocations as $user) {
+    echo $user->externalUserId . ' — ' . $user->email;
+    echo ' (' . $user->status . ')';
+}
+
+echo $result->capacity->activeCount . ' / ' . $result->capacity->capacityUnits . ' seats';
+echo $result->capacity->utilizationPercentage . '% utilized';
+
+if ($result->capacity->exceeded) {
+    // Over limit — prompt upgrade
+}
+
+// Page 2, all statuses
+$page2 = $client->getAllocations(
+    requestingEntityId: 'workspace_123',
+    status: 'all',
+    page: 2,
+    limit: 25,
+);
+echo $page2->pagination->total . ' total users';
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Success
+{
+  "success": true,
+  "data": {
+    "allocations": [
+      {
+        "externalUserId": "user_1",
+        "email": "alice@acme.com",
+        "name": "Alice",
+        "status": "active",
+        "allocatedAt": "2026-05-01T10:00:00.000Z",
+        "removedAt": null,
+        "metadata": { "addedBy": "admin_789" }
+      },
+      {
+        "externalUserId": "user_2",
+        "email": "bob@acme.com",
+        "name": "Bob",
+        "status": "active",
+        "allocatedAt": "2026-05-03T14:30:00.000Z",
+        "removedAt": null,
+        "metadata": {}
+      }
+    ],
+    "capacity": {
+      "activeCount": 8,
+      "capacityUnits": 10,
+      "utilizationPercentage": 80,
+      "exceeded": false
+    },
+    "pagination": {
+      "total": 8,
+      "page": 1,
+      "limit": 50,
+      "totalPages": 1,
+      "hasNextPage": false,
+      "hasPreviousPage": false
+    }
+  }
+}
+```
+
+```json 400 Missing required param
+{
+  "success": false,
+  "error": "Missing required query param: requestingEntityId"
+}
+```
+
+```json 404 No active subscription
+{
+  "success": false,
+  "error": "No active subscription found for this tenant"
+}
+```
+</ResponseExample>

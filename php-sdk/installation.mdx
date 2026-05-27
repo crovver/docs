@@ -293,7 +293,7 @@ if ($result->requiresProration) {
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `requestingEntityId` | string | yes | Your tenant/workspace ID |
-| `externalUserId` | string | no | Your user ID. If omitted, a system ID is generated (always creates a new allocation) |
+| `externalUserId` | string | yes | Your user ID. Must be non-empty. The call is idempotent — re-allocating the same ID updates the record rather than creating a duplicate. |
 | `email` | string | no | User's email for audit records |
 | `name` | string | no | User's display name for audit records |
 | `metadata` | array | no | Arbitrary key/value pairs stored with the allocation |
@@ -317,6 +317,128 @@ if ($result->requiresProration) {
 | `utilizationPercentage` | int | `activeCount / capacityUnits × 100` |
 | `billingMode` | string | `recurring`, `manual`, or `free` |
 | `exceeded` | bool | Whether `activeCount > capacityUnits` |
+
+### Bulk Allocate Seats
+
+Allocate up to 100 users in one atomic call. Users beyond `capacity_units` are returned in `rejected` — no proration is triggered. Already-active users are silently skipped (idempotent).
+
+<Warning>
+  `bulkAllocateSeats` is **never retried automatically** to prevent duplicate allocations on network errors.
+</Warning>
+
+```php
+use Crovver\Types\BulkAllocateSeatsRequest;
+use Crovver\Types\BulkAllocateSeatUser;
+
+$result = $client->bulkAllocateSeats(new BulkAllocateSeatsRequest(
+    requestingEntityId: 'workspace_abc123',
+    users: [
+        new BulkAllocateSeatUser('user_1', 'alice@acme.com', 'Alice'),
+        new BulkAllocateSeatUser('user_2', 'bob@acme.com',   'Bob'),
+        new BulkAllocateSeatUser('user_3', 'carol@acme.com', 'Carol'),
+    ],
+    metadata: ['addedBy' => 'admin_789'], // optional
+));
+
+echo count($result->allocated) . ' allocated';
+echo count($result->skipped)   . ' skipped (already active)';
+echo count($result->rejected)  . ' rejected (over capacity)';
+
+echo $result->capacity->activeCount . ' / ' . $result->capacity->capacityUnits . ' seats';
+
+if (count($result->rejected) > 0) {
+    // Call createProrationCheckout to upgrade capacity, then retry $result->rejected
+    echo $result->message;
+}
+```
+
+Returns HTTP **207** when at least one user was rejected; **200** otherwise.
+
+#### `BulkAllocateSeatsRequest` Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `requestingEntityId` | string | yes | Your tenant/workspace ID |
+| `users` | `BulkAllocateSeatUser[]` | yes | Max 100 per call. Each `externalUserId` must be unique within the batch. |
+| `metadata` | array | no | Attached to every allocation created in this batch |
+
+#### `BulkAllocateSeatUser` Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `externalUserId` | string | yes | Your app's user ID |
+| `email` | string | no | User's email |
+| `name` | string | no | User's display name |
+
+#### `BulkAllocateSeatsResponse` Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `allocated` | `string[]` | User IDs inserted this call |
+| `skipped` | `string[]` | Already active — not re-inserted |
+| `rejected` | `string[]` | Would exceed capacity — not inserted |
+| `capacity->activeCount` | int | Active seat count after this operation |
+| `capacity->capacityUnits` | int | Total seat limit on the subscription |
+| `message` | `string\|null` | Present when users were rejected |
+
+---
+
+### List Allocations
+
+Returns a paginated list of users allocated to the tenant's active subscription, along with a real-time capacity summary.
+
+```php
+// Active users, first page (defaults)
+$result = $client->getAllocations('workspace_abc123');
+
+foreach ($result->allocations as $user) {
+    echo $user->externalUserId . ' — ' . $user->email . ' (' . $user->status . ')';
+    echo ' since ' . $user->allocatedAt;
+}
+
+// Capacity summary
+echo $result->capacity->activeCount . ' / ' . $result->capacity->capacityUnits . ' seats';
+echo $result->capacity->utilizationPercentage . '% utilized';
+
+if ($result->capacity->exceeded) {
+    // Prompt upgrade
+}
+
+// Pagination
+echo $result->pagination->total . ' total — page '
+    . $result->pagination->page . ' of ' . $result->pagination->totalPages;
+
+// Page through all users including removed
+$page2 = $client->getAllocations(
+    requestingEntityId: 'workspace_abc123',
+    status: 'all',    // 'active' | 'removed' | 'all'
+    page: 2,
+    limit: 25,        // max 100, default 50
+);
+```
+
+#### `getAllocations` Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `requestingEntityId` | string | required | Your tenant/workspace ID |
+| `status` | string | `'active'` | `'active'`, `'removed'`, or `'all'` |
+| `page` | int | `1` | 1-based page number |
+| `limit` | int | `50` | Page size, max 100 |
+
+#### `AllocationUser` Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `externalUserId` | string | Your app's user ID |
+| `email` | `string\|null` | User's email |
+| `name` | `string\|null` | User's display name |
+| `status` | string | `'active'` or `'removed'` |
+| `allocatedAt` | string | ISO 8601 timestamp of seat assignment |
+| `removedAt` | `string\|null` | ISO 8601 timestamp of deallocation |
+| `metadata` | array | Metadata stored at allocation time |
+
+---
 
 ### Proration Checkout
 

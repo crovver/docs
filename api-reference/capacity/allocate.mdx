@@ -16,8 +16,8 @@ The call is idempotent per `externalUserId` — re-allocating the same user upda
   The external tenant ID from your application
 </ParamField>
 
-<ParamField body="externalUserId" type="string">
-  The user being allocated a seat. If omitted, a system-generated ID is used (non-idempotent).
+<ParamField body="externalUserId" type="string" required>
+  Your application's user ID for the seat being allocated. Must be unique within the tenant's subscription. The call is idempotent — reallocating the same ID updates the record rather than creating a duplicate.
 </ParamField>
 
 <ParamField body="email" type="string">
