@@ -1,9 +1,9 @@
 ---
 title: useFeatureAccess
-description: Check if the current tenant has access to a specific feature.
+description: Check if the current tenant has access to a specific feature or product.
 ---
 
-Checks whether the tenant's active plan includes a given feature key.
+Checks whether the tenant's active plan includes a given feature key. Supports multi-product orgs via a `productSlug` option and an optional remote API check.
 
 ## Usage
 
@@ -23,9 +23,11 @@ function ExportButton() {
 
 ## Parameters
 
-| Param | Type | Description |
-|---|---|---|
-| `featureKey` | `string` | The feature key to check (must match a key in `plan.features`) |
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `feature` | `string` | — | Feature key to check. Optional when `productSlug` is provided — omitting it performs a subscription-existence check. |
+| `opts.checkRemote` | `boolean` | `false` | Check via API instead of local plan data. Required when using `productSlug`. |
+| `opts.productSlug` | `string` | — | Scope the check to a specific product. Overrides the provider-level `productSlug` for this call. |
 
 ## Return Value
 
@@ -35,20 +37,20 @@ function ExportButton() {
   canAccess: boolean;     // alias for hasAccess
   isLoading: boolean;
   error: Error | null;
-  redirectToUpgrade: () => void;   // Calls redirectToCheckout() internally
+  redirectToUpgrade: () => void;
   refresh: () => Promise<void>;
 }
 ```
 
 ## How Access Is Determined
 
-Access is resolved from the subscription data already loaded by `CrovverProvider`:
+By default this is a **local check** — no API call is made. The subscription data fetched by `CrovverProvider` on mount is used:
 
-1. If no active subscription → `hasAccess: false`
-2. If active subscription but feature not in `plan.features` → `hasAccess: false`
-3. If `plan.features[featureKey] === true` → `hasAccess: true`
+1. No active subscription → `hasAccess: false`
+2. Feature not in `plan.features` → `hasAccess: false`
+3. `plan.features[featureKey] === true` → `hasAccess: true`
 
-This is a **local check** — no additional API call is made. The subscription data is fetched once by `CrovverProvider` on mount.
+When `checkRemote: true`, the hook calls `POST /api/public/can-access` on every render cycle change, which supports `productSlug` scoping.
 
 ## Examples
 
@@ -62,20 +64,30 @@ const { hasAccess } = useFeatureAccess('bulk_operations');
 </button>
 ```
 
-### Show an upgrade tooltip
+### Multi-product: scope to a specific product
 
 ```tsx
-const { hasAccess, redirectToUpgrade } = useFeatureAccess('custom_domain');
+// Feature gate scoped to a product (requires remote check)
+const { hasAccess } = useFeatureAccess('job_posting', {
+  checkRemote: true,
+  productSlug: 'product-a',
+});
+```
 
-<Tooltip content={!hasAccess ? <span onClick={redirectToUpgrade}>Upgrade →</span> : null}>
-  <DomainInput disabled={!hasAccess} />
-</Tooltip>
+### Subscription-existence check
+
+```tsx
+// Does this tenant have any active subscription for product-a?
+const { hasAccess: hasProductA } = useFeatureAccess(undefined, {
+  checkRemote: true,
+  productSlug: 'product-a',
+});
 ```
 
 ### Check multiple features
 
 ```tsx
 const analytics = useFeatureAccess('advanced_analytics');
-const exports = useFeatureAccess('data_export');
-const api = useFeatureAccess('api_access');
+const exports   = useFeatureAccess('data_export');
+const api       = useFeatureAccess('api_access');
 ```
