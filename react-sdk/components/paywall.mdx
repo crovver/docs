@@ -20,19 +20,23 @@ import { Paywall } from 'crovver-react';
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `children` | `ReactNode` | — | Content shown when subscribed |
-| `fallback` | `ReactNode` | Built-in upgrade prompt | Content shown when not subscribed |
-| `loadingFallback` | `ReactNode` | `null` | Content shown while loading |
+| `fallback` | `(redirectToCheckout: () => void) => ReactNode` | Built-in upgrade prompt | Render prop called with `redirectToCheckout` when not subscribed |
+| `loadingComponent` | `ReactNode` | `null` | Content shown while loading |
+| `autoRedirect` | `boolean` | `true` | Automatically redirect to checkout when no subscription is detected |
+| `style` | `CSSProperties` | — | Inline styles applied to the default paywall card |
 
 ## Custom Fallback
 
+`fallback` is a **render prop** — it receives `redirectToCheckout` so you can wire your own CTA:
+
 ```tsx
 <Paywall
-  fallback={
+  fallback={(redirectToCheckout) => (
     <div className="upgrade-banner">
       <h2>Subscribe to access this feature</h2>
-      <UpgradeButton />
+      <button onClick={redirectToCheckout}>Upgrade</button>
     </div>
-  }
+  )}
 >
   <AnalyticsDashboard />
 </Paywall>
@@ -42,6 +46,6 @@ import { Paywall } from 'crovver-react';
 
 | Subscription Status | What renders |
 |---|---|
-| Loading | `loadingFallback` |
+| Loading | `loadingComponent` |
 | `active` or `trial` | `children` |
 | `past_due`, `canceled`, `expired`, `none` | `fallback` |

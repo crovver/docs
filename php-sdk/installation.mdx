@@ -41,6 +41,7 @@ use Crovver\Types\CreateTenantRequest;
 $tenant = $client->createTenant(new CreateTenantRequest(
     externalTenantId: 'workspace_abc123',
     name: 'Acme Corp',
+    externalUserId: 'user_123',
 ));
 
 // Retrieve a tenant
@@ -63,7 +64,7 @@ foreach ($plans->plans as $plan) {
 $result = $client->getSubscriptions('workspace_abc123');
 
 foreach ($result->subscriptions as $sub) {
-    echo $sub->status; // active, trial, canceled, past_due...
+    echo $sub->status; // active, trial, past_due, pending_cancel, canceled, expired
 }
 ```
 
@@ -207,7 +208,7 @@ $client->recordUsage('workspace_abc123', 'api_calls', 1);
 
 // ❌ Deprecated — use getCreditsBalance() instead
 $limit = $client->checkUsageLimit('workspace_abc123', 'api_calls');
-echo $limit->used . ' / ' . $limit->limit;
+echo $limit->current . ' / ' . $limit->limit;
 ```
 
 ---

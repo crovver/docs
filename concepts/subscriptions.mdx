@@ -13,7 +13,8 @@ A **Subscription** is the record that links a tenant to a plan. It tracks billin
 | `trial` | In a free trial period |
 | `active` | Paid and active |
 | `past_due` | Payment failed — grace period |
-| `canceled` | Canceled by tenant or admin |
+| `pending_cancel` | Cancellation requested; access continues until `currentPeriodEnd` |
+| `canceled` | Canceled. For manual billing subscriptions, this is set immediately on cancellation; for recurring subscriptions, it is set at period end. |
 | `expired` | Trial or subscription ended without renewal |
 
 ## Status Transitions
@@ -23,16 +24,19 @@ flowchart LR
     pending --> trial --> active --> past_due --> canceled
     pending --> active
     past_due --> expired
+    active --> pending_cancel --> canceled
 ```
 
-Transitions are triggered by Stripe webhook events:
+Transitions are triggered by Stripe webhook events or explicit API calls:
 
-| Event | Transition |
+| Event / Action | Transition |
 |---|---|
 | `checkout.session.completed` | `pending` → `active` or `trial` |
 | `customer.subscription.updated` | `trial` → `active` |
 | `invoice.payment_failed` | `active` → `past_due` |
 | `customer.subscription.deleted` | any → `canceled` |
+| `POST /subscriptions/{id}/cancel` (recurring) | `active` / `trial` / `past_due` → `pending_cancel` |
+| `POST /subscriptions/{id}/cancel` (manual billing) | `active` / `trial` / `past_due` → `canceled` |
 
 ## Subscription Fields
 

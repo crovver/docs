@@ -28,11 +28,15 @@ function UpgradeButton() {
 
 ```typescript
 {
-  redirectToCheckout: (options?: CheckoutOptions) => Promise<void>;
-  redirectToPortal: () => Promise<void>;
+  redirectToCheckout: (options?: CheckoutOptions) => void;
+  redirectToBilling: () => void;
   isRedirecting: boolean;
 }
 ```
+
+<Note>
+  `isRedirecting` is currently always `false`. Do not rely on it to show a loading state — both redirect functions trigger a full page navigation, so the component unmounts before any state update would take effect.
+</Note>
 
 ## `redirectToCheckout(options?)`
 
@@ -64,19 +68,19 @@ redirectToCheckout({ requiredFeature: 'advanced_analytics' });
 redirectToCheckout({ requiredPlan: 'plan_enterprise' });
 ```
 
-## `redirectToPortal()`
+## `redirectToBilling()`
 
 Redirects the user to the billing portal to manage their subscription (view invoices, update payment method, cancel).
 
 1. Calls `POST /api/public/auth/portal-token`
-2. Redirects to `{ecomUrl}/portal?token={jwt}`
+2. Redirects to `{portalUrl}/billing?token={jwt}`
 
 ```tsx
 function BillingSettings() {
-  const { redirectToPortal } = useBillingRedirect();
+  const { redirectToBilling } = useBillingRedirect();
 
   return (
-    <button onClick={() => redirectToPortal()}>
+    <button onClick={() => redirectToBilling()}>
       Manage Billing
     </button>
   );
