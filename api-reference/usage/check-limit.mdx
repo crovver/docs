@@ -16,7 +16,7 @@ Returns the tenant's current usage for a metric and whether they're within the l
   The external tenant ID
 </ParamField>
 
-<ParamField body="metricKey" type="string" required>
+<ParamField body="metric" type="string" required>
   The metric to check (e.g., `api_calls`, `storage_gb`)
 </ParamField>
 
@@ -31,7 +31,7 @@ curl -X POST "https://api.crovver.com/api/public/check-usage-limit" \
   -H "Content-Type: application/json" \
   -d '{
     "requestingEntityId": "workspace_123",
-    "metricKey": "api_calls"
+    "metric": "api_calls"
   }'
 ```
 </RequestExample>
@@ -41,11 +41,12 @@ curl -X POST "https://api.crovver.com/api/public/check-usage-limit" \
 {
   "success": true,
   "data": {
-    "withinLimit": true,
+    "allowed": true,
     "current": 4821,
     "limit": 10000,
-    "percentUsed": 48.21,
-    "metricKey": "api_calls"
+    "remaining": 5179,
+    "percentage": 48,
+    "metric": "api_calls"
   }
 }
 ```
@@ -54,11 +55,12 @@ curl -X POST "https://api.crovver.com/api/public/check-usage-limit" \
 {
   "success": true,
   "data": {
-    "withinLimit": false,
+    "allowed": false,
     "current": 10203,
     "limit": 10000,
-    "percentUsed": 102.03,
-    "metricKey": "api_calls"
+    "remaining": 0,
+    "percentage": 102,
+    "metric": "api_calls"
   }
 }
 ```

@@ -22,7 +22,8 @@ import { FeatureGuard } from 'crovver-react';
 | `featureKey` | `string` | ✅ | Feature to check against the tenant's plan |
 | `children` | `ReactNode` | ✅ | Rendered when access is granted |
 | `fallback` | `ReactNode` | | Rendered when access is denied |
-| `loadingFallback` | `ReactNode` | | Rendered while checking |
+| `loadingComponent` | `ReactNode` | | Rendered while checking |
+| `checkRemote` | `boolean` | | When `true`, verifies access via the API instead of local context. Defaults to `false`. |
 
 ## Fallback with Upgrade CTA
 

@@ -16,11 +16,11 @@ Records a usage event for a tenant. Crovver accumulates these events and checks 
   The external tenant ID
 </ParamField>
 
-<ParamField body="metricKey" type="string" required>
+<ParamField body="metric" type="string" required>
   The metric to record (must match a key in `plan.limits`)
 </ParamField>
 
-<ParamField body="quantity" type="number">
+<ParamField body="value" type="number">
   Amount to add. Defaults to `1`.
 </ParamField>
 
@@ -39,8 +39,8 @@ curl -X POST "https://api.crovver.com/api/public/record-usage" \
   -H "Content-Type: application/json" \
   -d '{
     "requestingEntityId": "workspace_123",
-    "metricKey": "api_calls",
-    "quantity": 1,
+    "metric": "api_calls",
+    "value": 1,
     "metadata": { "endpoint": "/api/export", "userId": "user_456" }
   }'
 ```
@@ -51,9 +51,9 @@ curl -X POST "https://api.crovver.com/api/public/record-usage" \
 {
   "success": true,
   "data": {
-    "recorded": true,
-    "metricKey": "api_calls",
-    "quantity": 1
+    "message": "Usage recorded",
+    "metric": "api_calls",
+    "recordedValue": 1
   }
 }
 ```

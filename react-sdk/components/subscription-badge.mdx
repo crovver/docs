@@ -25,14 +25,4 @@ import { SubscriptionBadge } from 'crovver-react';
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `showPlanName` | `boolean` | `false` | Append plan name to the badge (e.g., "Pro · Active") |
-| `className` | `string` | | Additional CSS classes |
-
-## Example with Plan Name
-
-```tsx
-<SubscriptionBadge showPlanName />
-// → "Pro · Active"
-```
+`<SubscriptionBadge>` accepts no props. The plan name and badge styling are determined automatically from the tenant's active subscription.
