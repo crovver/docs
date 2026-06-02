@@ -1,11 +1,12 @@
 ---
 title: Check Feature Access
 api: POST /api/public/can-access
-description: Check if a tenant has access to a specific feature or has sufficient credits.
+description: Check if a tenant has access to a specific feature or has an active subscription for a product.
 authMethod: "none"
 ---
 
-Returns whether the tenant's active plan includes the requested feature key.
+Returns whether the tenant's active plan includes the requested feature.
+For multi-product orgs, pass `productSlug` to scope the check to a specific product's subscription.
 If the feature is backed by a credit pool, also returns the available credit balance.
 
 ## Request Body
@@ -14,8 +15,12 @@ If the feature is backed by a credit pool, also returns the available credit bal
   The external tenant ID from your application
 </ParamField>
 
-<ParamField body="featureKey" type="string" required>
-  The feature key to check (must match a key in `plan.features`)
+<ParamField body="featureKey" type="string">
+  The feature key to check (must match a key in `plan.features`). Optional when `productSlug` is provided — omitting it performs a **subscription-existence check** (returns `true` if the tenant has any active/trial subscription for that product).
+</ParamField>
+
+<ParamField body="productSlug" type="string">
+  Scope the check to a specific product (e.g. `product-a`). Required for multi-product orgs. At least one of `featureKey` or `productSlug` must be provided.
 </ParamField>
 
 <ParamField body="amount" type="integer">
@@ -29,11 +34,15 @@ Requires a **public key** (`x-public-key: pk_live_...`) or **secret key** (`Auth
 ## Response
 
 <ResponseField name="data.canAccess" type="boolean">
-  Whether the tenant can access the feature
+  Whether the tenant can access the feature or has an active subscription for the product
 </ResponseField>
 
 <ResponseField name="data.featureKey" type="string">
-  The feature key that was checked
+  Echoed feature key (absent when only `productSlug` was provided)
+</ResponseField>
+
+<ResponseField name="data.productSlug" type="string">
+  Echoed product slug (when provided)
 </ResponseField>
 
 <ResponseField name="data.requestingEntityId" type="string">
@@ -49,7 +58,7 @@ Requires a **public key** (`x-public-key: pk_live_...`) or **secret key** (`Auth
 </ResponseField>
 
 <RequestExample>
-```bash cURL
+```bash Feature check (single-product)
 curl -X POST "https://app.crovver.com/api/public/can-access" \
   -H "x-public-key: pk_live_..." \
   -H "Content-Type: application/json" \
@@ -59,14 +68,24 @@ curl -X POST "https://app.crovver.com/api/public/can-access" \
   }'
 ```
 
-```bash cURL (credit-backed feature)
+```bash Feature check scoped to a product
 curl -X POST "https://app.crovver.com/api/public/can-access" \
   -H "x-public-key: pk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
     "requestingEntityId": "workspace_123",
-    "featureKey": "api_calls",
-    "amount": 10
+    "featureKey": "advanced_analytics",
+    "productSlug": "product-a"
+  }'
+```
+
+```bash Subscription-existence check (no featureKey)
+curl -X POST "https://app.crovver.com/api/public/can-access" \
+  -H "x-public-key: pk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestingEntityId": "workspace_123",
+    "productSlug": "product-a"
   }'
 ```
 </RequestExample>
@@ -83,17 +102,25 @@ curl -X POST "https://app.crovver.com/api/public/can-access" \
 }
 ```
 
-```json 200 Credit-backed feature
+```json 200 Scoped to product
 {
   "success": true,
   "data": {
     "canAccess": true,
-    "featureKey": "api_calls",
-    "requestingEntityId": "workspace_123",
-    "credits": {
-      "available": 850,
-      "sufficient": true
-    }
+    "featureKey": "advanced_analytics",
+    "productSlug": "product-a",
+    "requestingEntityId": "workspace_123"
+  }
+}
+```
+
+```json 200 Subscription-existence check
+{
+  "success": true,
+  "data": {
+    "canAccess": true,
+    "productSlug": "product-a",
+    "requestingEntityId": "workspace_123"
   }
 }
 ```

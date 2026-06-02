@@ -74,11 +74,14 @@ await crovver.cancelSubscription(subscriptionId, "workspace_abc123", "User reque
 ## Feature Entitlements
 
 ```typescript
+// Single-product org
 const canAccess = await crovver.canAccess("workspace_abc123", "advanced_analytics");
 
-if (canAccess) {
-  // serve the feature
-}
+// Multi-product: scope to a specific product
+const canAccess = await crovver.canAccess("workspace_abc123", "advanced_analytics", "product-a");
+
+// Subscription-existence check — does this tenant have any active sub for product-a?
+const hasProduct = await crovver.canAccess("workspace_abc123", undefined, "product-a");
 ```
 
 ## Credits

@@ -20,6 +20,10 @@ Returns the tenant's current usage for a metric and whether they're within the l
   The metric to check (e.g., `api_calls`, `storage_gb`)
 </ParamField>
 
+<ParamField body="productSlug" type="string">
+  Scope the check to a specific product's subscription. Required for multi-product orgs.
+</ParamField>
+
 ## Authentication
 
 Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **public key** (`x-public-key`).
