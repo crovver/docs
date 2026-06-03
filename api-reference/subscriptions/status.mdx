@@ -21,6 +21,10 @@ Pass your public key as a query parameter (`?publicKey=pk_live_...`). No bearer 
   The external tenant ID from your application
 </ParamField>
 
+<ParamField query="productSlug" type="string">
+  Scope the lookup to a specific product (e.g. `product-a`, `product-b`). Required for multi-product orgs where a tenant holds one subscription per product. Omit for single-product orgs — returns the most recently created active subscription.
+</ParamField>
+
 ## Response
 
 <ResponseField name="success" type="boolean" />
@@ -51,6 +55,9 @@ Pass your public key as a query parameter (`?publicKey=pk_live_...`). No bearer 
       <Expandable>
         <ResponseField name="id" type="string" />
         <ResponseField name="name" type="string" />
+        <ResponseField name="productId" type="string | null">ID of the product this plan belongs to</ResponseField>
+        <ResponseField name="productName" type="string | null">Display name of the product</ResponseField>
+        <ResponseField name="productSlug" type="string | null">URL-safe product identifier (e.g. `ats`). Use this to scope subsequent `can-access` calls to the same product.</ResponseField>
         <ResponseField name="billingInterval" type="string" />
         <ResponseField name="features" type="string[]">Feature keys included in this plan</ResponseField>
         <ResponseField name="limits" type="object">Numeric usage limits</ResponseField>
@@ -60,8 +67,12 @@ Pass your public key as a query parameter (`?publicKey=pk_live_...`). No bearer 
 </ResponseField>
 
 <RequestExample>
-```bash cURL
+```bash Single-product org
 curl "https://app.crovver.com/api/public/subscriptions/status?publicKey=pk_live_...&tenantId=workspace_123"
+```
+
+```bash Multi-product: scope to a specific product
+curl "https://app.crovver.com/api/public/subscriptions/status?publicKey=pk_live_...&tenantId=workspace_123&productSlug=product-a"
 ```
 </RequestExample>
 
@@ -72,33 +83,37 @@ curl "https://app.crovver.com/api/public/subscriptions/status?publicKey=pk_live_
   "data": {
     "active": true,
     "status": "active",
-    "tenant": { "id": "ten_abc", "name": "Acme Corp", "isActive": true },
+    "tenant": { "id": "workspace_123", "name": "Acme Corp", "isActive": true },
     "subscription": {
-      "id": "sub_xyz",
+      "id": "sub_uuid",
       "status": "active",
-      "currentPeriodStart": "2025-01-01T00:00:00Z",
-      "currentPeriodEnd": "2025-02-01T00:00:00Z",
-      "capacityUnits": 15,
-      "usedCapacity": 12
+      "trialEndsAt": null,
+      "currentPeriodStart": "2026-05-01T00:00:00Z",
+      "currentPeriodEnd": "2026-06-01T00:00:00Z",
+      "capacityUnits": 10,
+      "usedCapacity": 7
     },
     "plan": {
-      "id": "plan_pro",
-      "name": "Pro",
+      "id": "plan_uuid",
+      "name": "Growth",
+      "productId": "prod_uuid",
+      "productName": "Product A",
+      "productSlug": "product-a",
       "billingInterval": "monthly",
-      "features": ["advanced_analytics", "api_access"],
+      "features": ["feature_x", "feature_y"],
       "limits": { "api_calls": 10000 }
     }
   }
 }
 ```
 
-```json 200 No Subscription
+```json 200 No active subscription
 {
   "success": true,
   "data": {
     "active": false,
     "status": "none",
-    "tenant": { "id": "ten_abc", "name": "Acme Corp", "isActive": false },
+    "tenant": { "id": "workspace_123", "name": "Acme Corp", "isActive": true },
     "subscription": null,
     "plan": null
   }
