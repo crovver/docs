@@ -52,8 +52,15 @@ Redirects the user to the Crovver pricing/checkout page. Internally:
 {
   requiredFeature?: string;   // Pre-selects a plan that includes this feature
   requiredPlan?: string;      // Pre-selects a specific plan ID
+  productSlug?: string;       // Scopes the pricing page to a single product
 }
 ```
+
+| Option            | Type     | Description |
+| ----------------- | -------- | ----------- |
+| `requiredFeature` | `string` | Shows a banner on the pricing page indicating which feature the user needs. Does not filter plans. |
+| `requiredPlan`    | `string` | Hints which plan the user should select. |
+| `productSlug`     | `string` | Scopes the pricing page to only show plans for the given product. Use this in multi-product orgs where different parts of your app sell different plan sets. The slug must match a product slug configured in your Crovver org. |
 
 ### Examples
 
@@ -66,6 +73,9 @@ redirectToCheckout({ requiredFeature: 'advanced_analytics' });
 
 // Redirect to a specific plan
 redirectToCheckout({ requiredPlan: 'plan_enterprise' });
+
+// Scope pricing page to a single product (multi-product orgs)
+redirectToCheckout({ productSlug: 'marketing' });
 ```
 
 ## `redirectToBilling()`
