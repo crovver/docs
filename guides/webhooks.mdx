@@ -20,23 +20,10 @@ When you configure a payment provider in **Settings → Payment Providers**, Cro
 | `invoice.payment_succeeded` | Renews billing period |
 | `invoice.payment_failed` | Moves subscription to `past_due` |
 
-## Local Development
-
-To test the full webhook flow locally, use the Stripe CLI to forward events to your running Crovver instance:
-
-```bash
-stripe listen --forward-to localhost:3000/api/webhooks/stripe
-```
-
-The CLI prints a temporary webhook secret — set it as `STRIPE_WEBHOOK_SECRET` in your Crovver `.env` for local testing.
-
 ## Idempotency
 
 Crovver deduplicates webhook events using the provider event ID. Replaying events is safe.
 
-## Testing the Full Flow
+## Do I Need to Configure Anything?
 
-1. Start your Crovver API locally
-2. Run `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
-3. Use a test plan and complete checkout with card `4242 4242 4242 4242`
-4. Watch the subscription status activate in your app
+No. Crovver registers and handles webhooks for you when you connect a payment provider — there's no endpoint to set up, no signing secret to manage, and nothing to deploy. Subscription state stays in sync automatically.

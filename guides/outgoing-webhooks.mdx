@@ -1,0 +1,193 @@
+---
+title: Outgoing Webhooks
+description: Receive real-time subscription events on your own server.
+---
+
+Crovver can push subscription lifecycle events to HTTP endpoints you register. When a subscription is created, activated, renewed, or canceled — whether triggered manually from your dashboard or by a payment provider — Crovver signs a JSON payload and POSTs it to every active endpoint you've configured.
+
+## Setting Up an Endpoint
+
+1. Go to **Developers → Webhooks** in your Crovver dashboard
+2. Click **+ Add Endpoint**
+3. Enter your HTTPS URL — e.g. `https://api.your-app.com/webhooks/crovver`
+4. Copy the signing secret shown — **it is displayed only once and cannot be retrieved again**
+
+Your endpoint must respond with a `2xx` status within **5 seconds**. Any other response or a timeout is recorded as a failed delivery.
+
+## Event Envelope
+
+Every event shares the same top-level structure:
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-...",
+  "type": "subscription.activated",
+  "created_at": "2026-06-07T10:00:00.000Z",
+  "org_id": "org_...",
+  "data": {
+    "id": "sub_...",
+    "status": "active",
+    "plan_id": "plan_...",
+    "billing_mode": "recurring",
+    "external_tenant_id": "your_user_id_123",
+    "tenant_name": "Acme Corp",
+    "current_period_start": "2026-06-07T00:00:00Z",
+    "current_period_end": "2026-07-07T00:00:00Z",
+    "capacity_units": 5,
+    "created_at": "2026-06-01T00:00:00Z",
+    "updated_at": "2026-06-07T10:00:00Z"
+  }
+}
+```
+
+<Note>
+`data.external_tenant_id` is the ID you provided when creating the tenant — use this to identify the user or workspace in your own system. `data.tenant_name` is the human-readable name for quick identification.
+</Note>
+
+## Events Reference
+
+| Event | When it fires |
+|---|---|
+| `subscription.created` | A subscription is manually created from the dashboard |
+| `subscription.activated` | A subscription goes live for the first time — checkout completes or an invoice is marked paid |
+| `subscription.updated` | Status, billing period, or seat count changes |
+| `subscription.renewed` | A recurring billing cycle payment succeeds and the period advances |
+| `subscription.canceled` | Subscription is canceled by an admin, the tenant, or the payment provider |
+| `webhook.test` | Sent when you click **Send Test** from the dashboard |
+
+<Info>
+When a free trial ends and the first charge succeeds, both `subscription.updated` (status: `trialing → active`) and `subscription.renewed` (payment received) fire in sequence. These represent distinct state changes — handle them independently and use the top-level `id` to deduplicate if needed.
+</Info>
+
+## Verifying Signatures
+
+Every request includes an `X-Crovver-Signature` header. **Always verify it before processing the event.**
+
+```
+X-Crovver-Signature: sha256=<hmac-hex>
+X-Crovver-Event: subscription.activated
+User-Agent: Crovver-Webhook/1.0
+```
+
+The signature is `HMAC-SHA256` of the **raw request body** using your endpoint's signing secret.
+
+<CodeGroup>
+
+```typescript Node.js
+import crypto from "crypto";
+import express from "express";
+
+const app = express();
+
+// Use raw body middleware — do NOT parse JSON before verifying
+app.post(
+  "/webhooks/crovver",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const sig = req.headers["x-crovver-signature"] as string;
+
+    const expected =
+      "sha256=" +
+      crypto
+        .createHmac("sha256", process.env.WEBHOOK_SECRET!)
+        .update(req.body) // raw Buffer — not re-serialized JSON
+        .digest("hex");
+
+    const valid =
+      sig?.length === expected.length &&
+      crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid signature" });
+    }
+
+    const event = JSON.parse(req.body.toString());
+
+    switch (event.type) {
+      case "subscription.activated":
+        // Grant access for event.data.external_tenant_id
+        break;
+      case "subscription.renewed":
+        // Extend access period
+        break;
+      case "subscription.canceled":
+        // Revoke access
+        break;
+    }
+
+    // Always respond 200 quickly
+    res.status(200).json({ received: true });
+  }
+);
+```
+
+```php PHP
+<?php
+$payload = file_get_contents('php://input');
+$sigHeader = $_SERVER['HTTP_X_CROVVER_SIGNATURE'] ?? '';
+
+$expected = 'sha256=' . hash_hmac('sha256', $payload, $_ENV['WEBHOOK_SECRET']);
+
+if (!hash_equals($expected, $sigHeader)) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Invalid signature']);
+    exit;
+}
+
+$event = json_decode($payload, true);
+
+switch ($event['type']) {
+    case 'subscription.activated':
+        // Grant access for $event['data']['external_tenant_id']
+        break;
+    case 'subscription.canceled':
+        // Revoke access
+        break;
+}
+
+http_response_code(200);
+echo json_encode(['received' => true]);
+```
+
+</CodeGroup>
+
+<Warning>
+Always verify the signature against the **raw request body bytes** — not a re-serialized version. JSON parsers may reorder keys, which will break the HMAC comparison.
+</Warning>
+
+## Delivery & Retries
+
+Crovver delivers each event once. If your endpoint is down or returns a non-2xx status, the delivery is recorded as failed.
+
+In **Developers → Webhooks**, click **View Deliveries** on any endpoint to see:
+- The full JSON payload that was sent
+- The HTTP status and response body your server returned
+- Attempt count and timestamp
+
+Click **Retry** on any failed delivery to re-fire it with the same `id` — so your server can safely deduplicate.
+
+<Tip>
+Use the top-level `id` field as an idempotency key. Store processed event IDs and skip duplicates to handle retries safely.
+</Tip>
+
+## Testing Locally
+
+Use the **Send Test** button in your dashboard to fire a `webhook.test` event to any registered endpoint. The delivery and its payload will appear in the **View Deliveries** log immediately.
+
+To receive events on your local machine, expose it with a tunneling tool like [ngrok](https://ngrok.com):
+
+```bash
+ngrok http 3000
+# → https://abc123.ngrok-free.app
+```
+
+Register the generated HTTPS URL as your endpoint — e.g. `https://abc123.ngrok-free.app/webhooks/crovver` — then use **Send Test** to verify your handler end-to-end before deploying.
+
+## Security Notes
+
+| Concern | How it's handled |
+|---|---|
+| Signature forgery | HMAC-SHA256 per-endpoint secret — compare with `timingSafeEqual` |
+| Secret exposure | Signing secret shown once at creation, never returned again |
+| Sensitive fields | Provider IDs, admin-only fields, and internal credentials are stripped from all payloads |
+| Delivery errors | Never surface to the API caller — your subscription action always completes regardless |
