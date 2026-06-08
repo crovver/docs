@@ -114,6 +114,7 @@
               "guides/checkout-flow",
               "guides/seat-based-billing",
               "guides/webhooks",
+              "guides/outgoing-webhooks",
               "guides/test-mode",
               "guides/multi-currency",
               "guides/addons",
