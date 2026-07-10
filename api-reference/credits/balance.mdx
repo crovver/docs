@@ -12,6 +12,14 @@ Returns a breakdown of base (plan-included) and add-on credits remaining per poo
   The external tenant ID from your application
 </ParamField>
 
+<ParamField query="productSlug" type="string">
+  Scope the lookup to the tenant's active subscription for this product (e.g. `ats`). A tenant holds at most one active subscription per product, so this is the recommended way to disambiguate multi-product tenants. Without it, the most recently created active subscription is used.
+</ParamField>
+
+<ParamField query="subscriptionId" type="string">
+  Scope the lookup to an exact subscription ID. Takes effect together with `productSlug` if both are passed (they must refer to the same subscription).
+</ParamField>
+
 <ParamField query="publicKey" type="string">
   Your public key (`pk_live_...`). Alternative to the `Authorization` bearer header — use one or the other.
 </ParamField>

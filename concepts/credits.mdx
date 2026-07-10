@@ -66,9 +66,11 @@ Authorization: Bearer sk_live_...
 }
 ```
 
+Balances are scoped to one subscription. For multi-product orgs — where a tenant holds one active subscription per product — pass `productSlug` to select the product's subscription; otherwise the most recently created active subscription is used.
+
 ## Recording Consumption
 
-Call `credits/consume` from your backend whenever a tenant consumes a credit. Every call requires an `idempotencyKey` — passing the same key twice returns the original result without double-deducting.
+Call `credits/consume` from your backend whenever a tenant consumes a credit. Every call requires an `idempotencyKey` — passing the same key twice returns the original result without double-deducting. It accepts the same optional `productSlug` scoping as the balance endpoint.
 
 ```bash
 POST /api/credits/consume

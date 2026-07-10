@@ -26,6 +26,14 @@ Passing the same `idempotencyKey` twice returns the original result without doub
   Unique key for this consumption event. Duplicate calls with the same key return the original result — no double deduction.
 </ParamField>
 
+<ParamField body="productSlug" type="string">
+  Scope consumption to the tenant's active subscription for this product (e.g. `ats`). A tenant holds at most one active subscription per product, so this is the recommended way to disambiguate multi-product tenants. Without it, the most recently created active subscription is used.
+</ParamField>
+
+<ParamField body="subscriptionId" type="string">
+  Scope consumption to an exact subscription ID. Takes effect together with `productSlug` if both are passed (they must refer to the same subscription).
+</ParamField>
+
 <ParamField body="metadata" type="object">
   Optional context stored on the event for auditing (e.g. `{ "endpoint": "/api/export", "userId": "u_123" }`).
 </ParamField>
