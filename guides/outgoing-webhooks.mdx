@@ -31,6 +31,9 @@ Every event shares the same top-level structure:
     "billing_mode": "recurring",
     "external_tenant_id": "your_user_id_123",
     "tenant_name": "Acme Corp",
+    "plan_name": "Business",
+    "product_name": "Acme ATS",
+    "product_slug": "acme-ats",
     "current_period_start": "2026-06-07T00:00:00Z",
     "current_period_end": "2026-07-07T00:00:00Z",
     "capacity_units": 5,
@@ -44,6 +47,21 @@ Every event shares the same top-level structure:
 `data.external_tenant_id` is the ID you provided when creating the tenant — use this to identify the user or workspace in your own system. `data.tenant_name` is the human-readable name for quick identification.
 </Note>
 
+Every event that names a subscription also carries the plan and product it belongs to, so you
+never have to resolve a UUID to route the event:
+
+| Field | Use |
+|---|---|
+| `plan_name` | Human-readable plan, e.g. `Business` |
+| `product_name` | Human-readable product |
+| `product_slug` | Stable machine identifier — **key your routing on this**, not the display names |
+
+<Tip>
+If you sell more than one product, `product_slug` is what disambiguates an event. Two products
+can define the same credit `pool_key`, so a `credits.refilled` naming only the pool is not enough
+on its own to decide which product's balance moved.
+</Tip>
+
 ## Events Reference
 
 | Event | When it fires |
@@ -53,11 +71,112 @@ Every event shares the same top-level structure:
 | `subscription.updated` | Status, billing period, or seat count changes |
 | `subscription.renewed` | A recurring billing cycle payment succeeds and the period advances |
 | `subscription.canceled` | Subscription is canceled by an admin, the tenant, or the payment provider |
+| `credits.refilled` | A new credit window began on a contract that was already paid for — see [Credit balances](#credit-balances) |
+| `addon.purchased` | An add-on purchase completed and its credits were granted |
 | `webhook.test` | Sent when you click **Send Test** from the dashboard |
 
 <Info>
 When a free trial ends and the first charge succeeds, both `subscription.updated` (status: `trialing → active`) and `subscription.renewed` (payment received) fire in sequence. These represent distinct state changes — handle them independently and use the top-level `id` to deduplicate if needed.
 </Info>
+
+## Credit Balances
+
+Every event that names a subscription carries a `credits` array with the tenant's per-pool
+balances, so you can keep your own mirror in sync without an extra API call.
+
+```json
+"credits": [
+  { "pool_key": "exports", "qty_remaining": 500, "qty_granted": 1750 }
+]
+```
+
+| Field | Meaning |
+|---|---|
+| `qty_remaining` | Live spendable balance right now — **this is the field to sync** |
+| `qty_granted` | Total ever granted for this pool on the current contract — a running audit total, **not** this window's grant |
+
+<Warning>
+`qty_granted` is cumulative, so it will usually be much larger than `qty_remaining` and the two
+are not meant to reconcile against each other. A pool granting 500 per window shows
+`qty_granted: 1750` and `qty_remaining: 500` in its fourth window — 1,750 handed out across the
+contract's history, 500 available today. To show "500 of 500 left" in your UI, compare
+`qty_remaining` against the plan's per-period limit, not against `qty_granted`.
+</Warning>
+
+Because `qty_remaining` is a full snapshot rather than a delta, **set** your stored balance from
+it rather than incrementing. A receiver that sets self-corrects after a missed delivery.
+
+On `addon.purchased`, the **top-level** `qty_granted` is that one purchase's delta ("this
+purchase added 500"), while `qty_granted` inside `credits` is the running total.
+
+### `credits.refilled`
+
+Recurring subscriptions refill when the provider charges them, and that is already covered by
+`subscription.renewed`. But a **manually billed** contract can be paid for several credit windows
+up front — a monthly plan prepaid for a year — and those later windows open with no payment and
+no status change. Nothing else would tell you the credits arrived.
+
+`credits.refilled` is that signal. It fires from a scheduled job at each window boundary:
+
+```json
+{
+  "type": "credits.refilled",
+  "data": {
+    "subscription_id": "...",
+    "tenant_id": "...",
+    "external_tenant_id": "workspace_123",
+    "tenant_name": "Slate Consulting",
+    "billing_period": 4,
+    "current_period_start": "2026-04-28T15:36:25.264Z",
+    "current_period_end": "2027-05-28T15:36:25.264Z",
+    "reason": "period_refill",
+    "credits": [
+      { "pool_key": "exports", "qty_remaining": 500, "qty_granted": 1750 }
+    ]
+  }
+}
+```
+
+`billing_period` is the window ordinal within the contract — window 4 of a prepaid year.
+`current_period_start` and `current_period_end` are the **contract** bounds, not the window's; a
+refill never moves them.
+
+It is **not** sent when the plan defines no credit pools, when a concurrent run already advanced
+that window, or for provider-billed subscriptions.
+
+### Early renewals refill later, not at payment
+
+This is the case most integrations get wrong, so handle it explicitly.
+
+<Tabs>
+  <Tab title="Early renewal">
+    Paid **before** the current period ends. Crovver extends `current_period_end` and keeps the
+    original period start, so the contract now spans more credit windows.
+
+    No credits are granted at payment time. The `subscription.renewed` you receive carries
+    **pre-refill** balances — accurate at that instant, but not the post-renewal figure.
+
+    Each newly paid-for window is granted later, at its real boundary, and arrives as
+    `credits.refilled`. **Sync balances from that event, not from the renewal.**
+  </Tab>
+  <Tab title="On-time or late renewal">
+    Paid on or after the period end. Crovver moves both period start and end, restarting the
+    window schedule for the renewed contract.
+
+    Credits refill immediately, before the webhook is dispatched — so `subscription.renewed`
+    carries post-refill balances and no `credits.refilled` follows.
+
+    A late renewal does not back-fill the unpaid gap: one renewal grants one window. Rollover
+    pools still carry their unused balance forward across the lapse.
+  </Tab>
+</Tabs>
+
+<Note>
+Webhooks cover every grant, but not consumption — your backend drives that, and
+`POST /api/public/credits/consume` returns the new `remaining` in its response. Write through
+from there, set from the `credits` block on events, and read
+[credit balance](/guides/credits) when you need certainty.
+</Note>
 
 ## Verifying Signatures
 
