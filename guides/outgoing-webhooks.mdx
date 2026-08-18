@@ -67,7 +67,7 @@ on its own to decide which product's balance moved.
 | Event | When it fires |
 |---|---|
 | `subscription.created` | A subscription is manually created from the dashboard |
-| `subscription.activated` | A subscription goes live for the first time — checkout completes or an invoice is marked paid |
+| `subscription.activated` | A subscription goes live for the first time — a Stripe checkout completes, a redirect-gateway payment is verified (eSewa, Khalti, ConnectIPS), or an invoice is marked paid |
 | `subscription.updated` | Status, billing period, or seat count changes |
 | `subscription.renewed` | A recurring billing cycle payment succeeds and the period advances |
 | `subscription.canceled` | Subscription is canceled by an admin, the tenant, or the payment provider |
@@ -77,6 +77,13 @@ on its own to decide which product's balance moved.
 
 <Info>
 When a free trial ends and the first charge succeeds, both `subscription.updated` (status: `trialing → active`) and `subscription.renewed` (payment received) fire in sequence. These represent distinct state changes — handle them independently and use the top-level `id` to deduplicate if needed.
+</Info>
+
+<Info>
+Redirect-gateway checkouts (eSewa, Khalti, ConnectIPS) verify the payment server-side after the
+browser returns, then emit `subscription.activated` with the tenant's freshly granted credits. If
+you integrated against these gateways before, note that this event is newly emitted — previously
+an activation through them produced no webhook at all.
 </Info>
 
 ## Credit Balances
