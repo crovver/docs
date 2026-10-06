@@ -42,7 +42,7 @@ curl "https://app.crovver.com/api/public/plans?publicKey=pk_live_..."
         "trial": { "days": 0, "available": false },
         "features": { "basic_analytics": true },
         "creditPools": [],
-        "product": { "id": "prod_abc", "name": "My SaaS", "description": null },
+        "product": { "id": "prod_abc", "name": "My SaaS", "description": null, "type": "b2b" },
         "paymentProviders": [{ "provider_type": "stripe", "is_active": true }],
         "isFree": true,
         "isSeatBased": false,
@@ -78,7 +78,7 @@ curl "https://app.crovver.com/api/public/plans?publicKey=pk_live_..."
             "limitBehavior": "soft"
           }
         ],
-        "product": { "id": "prod_abc", "name": "My SaaS", "description": null },
+        "product": { "id": "prod_abc", "name": "My SaaS", "description": null, "type": "b2b" },
         "paymentProviders": [{ "provider_type": "stripe", "is_active": true }],
         "isFree": false,
         "isSeatBased": true,
@@ -94,3 +94,9 @@ curl "https://app.crovver.com/api/public/plans?publicKey=pk_live_..."
 }
 ```
 </ResponseExample>
+
+<Note>
+  `plans[].product.type` (`b2b` or `d2c`) is the customer type of the plan's product, and decides whether checkout keys
+  the tenant on `externalTenantId` or `externalUserId`. `organization.type` is **deprecated**: one organization may sell
+  both kinds of product, so it carries the products' shared type, and `b2b` when they differ.
+</Note>

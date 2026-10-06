@@ -48,6 +48,8 @@ $tenant = $client->createTenant(new CreateTenantRequest(
 $tenant = $client->getTenant('workspace_abc123');
 ```
 
+Tenants are created through the SDK: the id you pass as `externalTenantId` is the customer's id, and the Crovver dashboard lists the tenant as a **Customer** under it. The owner's email also becomes the customer's email when the customer has none yet; an email set in the dashboard is never overwritten.
+
 ## Plans
 
 ```php

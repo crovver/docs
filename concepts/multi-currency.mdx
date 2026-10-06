@@ -65,23 +65,5 @@ Different payment providers support different currencies. Map providers to curre
 
 ## Setting Up New Currency Pricing
 
-Use the plans API or dashboard to add a price per currency:
-
-```bash
-POST /api/admin/plans/{planId}/prices
-{
-  "currency": "EUR",
-  "amount": 2700,
-  "providerId": "stripe"
-}
-```
-
-For add-ons:
-```bash
-POST /api/addons/{addonId}/pricing
-{
-  "currency": "EUR",
-  "amount": 900,
-  "providerId": "stripe"
-}
-```
+Add a price per currency in the dashboard: open the plan under **Products** and edit its pricing, or open the
+add-on and edit its prices. A plan can also override an add-on's price per currency from its **Compatible add-ons** card.
