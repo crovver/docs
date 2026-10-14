@@ -1,71 +1,54 @@
 ---
 title: Add-ons
-description: Purchasable credit packs that layer on top of a base subscription.
+description: Extra credits a customer buys on top of their plan.
 ---
 
-**Add-ons** are one-time purchasable credit bundles that tenants can buy on top of their existing subscription. Use them when you want to let customers top up a specific resource (API calls, SMS messages, AI tokens, storage) without requiring a plan upgrade.
+An **add-on** is something a customer buys on top of their subscription, such as an "AI Token Pack" that adds 1,000 `ai_tokens`. Use add-ons to let customers top up a metered resource without changing plan.
 
-## How Add-ons Work
+## How add-ons work
 
-```
-Plan ──── defines ────► Credit Pool (ai_tokens, limit=1000/mo)
-  │
-  └──── assigns ───────► Add-on: "AI Token Pack"
-                            pool_key: ai_tokens
-                            credit_qty: 500
-                            expiry_type: days (30)
-```
+1. Create the add-on in your product under **Product catalog → Catalog → Add-ons**. An add-on belongs to one product.
+2. Give it an **entitlement**: the meter it tops up and how much it grants.
+3. Set its price in each currency you sell in.
+4. Make it **compatible** with the plans that may buy it. A customer only sees add-ons compatible with their current plan.
+5. Publish it.
 
-1. You define a **Credit Pool** on a plan — this sets the tenant's base allocation for a resource.
-2. You create an **Add-on** that maps to the same `pool_key`.
-3. You assign the add-on to one or more plans.
-4. Tenants on those plans can purchase the add-on to get extra credits in that pool.
+## Fixed fee or per unit
 
-## Add-on Fields
-
-| Field | Type | Description |
+| Pricing | The customer buys | Example |
 |---|---|---|
-| `pool_key` | string | Identifier tying the add-on to a credit pool (e.g., `ai_tokens`) |
-| `display_name` | string | User-facing name shown in the billing portal |
-| `credit_qty` | integer | Credits granted per purchase |
-| `expiry_type` | enum | `period` (resets with plan cycle), `days` (expires N days after purchase), or `never` |
-| `expiry_days` | integer | Required when `expiry_type = "days"` |
-| `is_active` | boolean | Soft-delete flag; inactive add-ons are hidden from tenants |
+| **Fixed fee** | A fixed pack for one price | 1,000 tokens for $15 |
+| **Per unit bought** | Any quantity, priced per unit | $0.02 per token |
 
-## Credit Expiry Types
+## Expiry
 
-| Type | Behaviour |
+| Setting | The add-on's credits expire |
 |---|---|
-| `period` | Credits expire at the end of the tenant's current billing period |
-| `days` | Credits expire `expiry_days` days after purchase |
-| `never` | Credits never expire |
+| Ends with the billing period | At the end of the customer's current period |
+| Expires after a number of days | That many days after purchase |
+| Never expires | Never |
 
-## Pricing
+## Prices
 
-Each add-on has per-currency pricing stored in `addon_pricing`. A tenant can only purchase an add-on in the **same currency as their subscription**. Set up at least one price per currency you support.
+An add-on is bought in the currency of the customer's subscription, so give it a price in every currency your plans use.
 
-```json
-{
-  "providerId": "stripe",
-  "currency": "USD",
-  "amount": 1000,
-  "externalPriceId": "price_stripe_..."
-}
-```
+A plan can **override** an add-on's price. For example, Pro customers can pay $10 for a pack that costs $15 elsewhere. Customers on that plan are charged the override.
 
-## Plan Assignment
+A price of 0 is allowed. A free add-on calls no payment provider: its credits are granted at once, and the purchase returns `requiresPayment: false` with no `checkoutUrl`.
 
-An add-on is not visible to tenants until it is **assigned to their plan**. This lets you offer different upsell catalogs per pricing tier — for example, the Starter plan can only buy "Small Token Packs" while the Pro plan can access "Large Token Packs" too.
+## What cannot be published yet
 
-## Soft Deletion
+The public API describes an add-on as one meter and one quantity. Until it can describe more, two kinds of add-on stay in draft:
 
-Deleting an add-on with active purchases triggers a **soft-delete** (`is_active = false`). The add-on disappears from the purchase catalog but existing credit grants remain valid. Hard deletion happens only if there are no active purchase records.
+- an add-on that grants a **feature** instead of credits
+- an add-on that tops up **more than one meter**
 
-## Admin Grants
+The dashboard explains the refusal when you try to publish one.
 
-Admins can grant add-on credits to a tenant without charging them. This is useful for:
-- Compensating for a service issue
-- Running promotions
-- Onboarding credits
+## Selling add-ons from the dashboard
 
-Admin grants set `amount_charged = 0` and appear in the purchase history alongside paid purchases.
+From a subscription in the dashboard, **Buy add-on** invoices the customer for an add-on their plan supports. The credits are granted when the invoice is paid. A free add-on is granted at once.
+
+## Selling add-ons in your app
+
+Customers can buy add-ons on their billing page. To sell them inside your own app, use the [add-ons guide](/guides/addons).

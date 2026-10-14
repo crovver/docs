@@ -1,69 +1,60 @@
 ---
-title: Multi-Currency
-description: Offer plans in multiple currencies from a single configuration.
+title: Multi-currency
+description: Sell one plan in several currencies, and re-price it for specific countries.
 ---
 
-Crovver supports billing tenants in **multiple currencies** from a single plan definition. Each plan stores one pricing entry per supported currency in the `plan_prices` table — there is no "base currency" concept.
-
-## How It Works
+A plan has one price per currency you sell it in. There is no base currency: USD, EUR and NPR prices of the same plan are equal peers.
 
 ```
-Plan: "Pro"
-  ├── plan_prices: { currency: "USD", amount: 2900 }
-  ├── plan_prices: { currency: "NPR", amount: 3900 }
-  └── plan_prices: { currency: "EUR", amount: 2700 }
+Plan "Pro"
+  ├── USD  29.00
+  ├── EUR  27.00
+  └── NPR  3,900.00
 ```
 
-When a tenant subscribes, the chosen currency is **locked to their subscription** for its lifetime. All future renewals, proration charges, and add-on purchases use that currency.
+Prices are in the currency's normal unit, not in cents: `29` means $29.00.
 
-## Currency Resolution at Checkout
+## The currency is locked at subscription
 
-When you call `POST /api/public/checkout`, Crovver resolves the currency in this order:
+When a customer subscribes, the subscription takes one currency and keeps it for life. Renewals, seat changes and add-on purchases are all charged in that currency.
 
-1. **Explicit currency** — use the value you passed in `currency` (validated against `plan_prices`)
-2. **Plan default** — if no currency is passed, use the first active `plan_prices` entry (ordered by `created_at ASC`)
+## How checkout picks the currency
 
-If you pass a currency that has no matching `plan_prices` row, the API returns `422 CURRENCY_NOT_SUPPORTED`.
+1. The `currency` you pass to checkout, if the plan has a price in it.
+2. Otherwise, the plan's first currency.
 
-```bash
-POST /api/public/checkout
-{
-  "planId": "plan_pro",
-  "currency": "NPR",
-  "provider": "khalti",
-  ...
-}
-```
+A currency the plan has no price for is refused with `422 CURRENCY_NOT_SUPPORTED`.
 
-## Seat-Based Multi-Currency
+## Per-seat plans
 
-For seat-based plans each `plan_prices` row stores both a `base_price` and a `per_seat_price` for that currency:
+A per-seat plan has a base price and a per-seat price in each currency:
 
-| Currency | Base price | Per-seat price |
+| Currency | Base price | Per extra seat |
 |---|---|---|
-| USD | $50.00 (5000 cents) | $5.00 (500 cents) |
-| NPR | Rs 6,000 | Rs 600 |
+| USD | 50.00 | 5.00 |
+| NPR | 6,000.00 | 600.00 |
 
-Pricing is always calculated in the tenant's locked currency:
+## Country prices
 
-```
-total = base_price + max(0, seats - included_seats) × per_seat_price
-```
+A plan can also have a different price for buyers in a specific country, in one of its currencies. For example, Pro can cost 19.00 USD for buyers in India and 29.00 USD elsewhere.
 
-## Add-on Pricing
+A customer gets the country price when their country is set on the customer and the plan has a price for that country in the checkout currency. The country is fixed on the subscription when it is created.
 
-Add-ons have the same per-currency pricing model (`addon_pricing`). A tenant can only purchase an add-on **in their subscription's currency**. Attempting to buy with a different currency returns `422`.
+<Note>
+  `GET /api/public/plans` and the hosted pricing page show the plan's regular price. A customer with a country price is charged the country price at checkout.
+</Note>
 
-## Supported Providers by Currency
+## Add-ons
 
-Different payment providers support different currencies. Map providers to currencies when configuring your org:
+Add-ons are bought in the subscription's currency, so give each add-on a price in every currency your plans use. A plan can override an add-on's price per currency. See [Add-ons](/concepts/addons#prices).
 
-| Currency | Typical provider |
+## Payment providers by currency
+
+| Currency | Providers |
 |---|---|
-| USD, EUR | Stripe |
-| NPR | Khalti, eSewa |
+| USD, EUR and other card currencies | Stripe |
+| NPR | ConnectIPS |
 
-## Setting Up New Currency Pricing
+## Setting prices
 
-Add a price per currency in the dashboard: open the plan under **Products** and edit its pricing, or open the
-add-on and edit its prices. A plan can also override an add-on's price per currency from its **Compatible add-ons** card.
+Set a plan's currencies and country prices in its **Set price** flow, under **Product catalog**. Set an add-on's prices on the add-on, and a plan's overrides on the plan's **Compatible add-ons** card.

@@ -1,78 +1,70 @@
 ---
 title: Plans
-description: Pricing tiers with features, limits, and billing intervals.
+description: What a customer pays and what they get, inside one product.
 ---
 
-A **Plan** defines what a tenant gets access to and how much they pay. Plans belong to a **Product**, which is a logical grouping (e.g., "Email Platform" or "Analytics Suite").
+A **plan** belongs to one [product](/concepts/products). It has a **price**, which says what the customer pays, and **entitlements**, which say what the customer gets. You build both in the dashboard, under **Product catalog**, with the plan's **Set price** flow.
 
-## Plan Fields
+## Plan types
 
-| Field | Type | Description |
+| Type | What the customer pays | Payment provider |
 |---|---|---|
-| `name` | string | Display name (e.g., "Pro", "Enterprise") |
-| `price_amount` | integer | Price in smallest currency unit (cents) |
-| `billing_interval` | enum | `monthly`, `yearly`, or `one-time` |
-| `trial_days` | integer | Free trial length. `0` means no trial. |
-| `features` | JSON | Boolean feature flags |
-| `limits` | JSON | Numeric usage limits |
-| `test_mode` | boolean | Routes to test payment credentials if `true` |
+| **Free** | Nothing | None. The subscription activates at once. |
+| **Flat Rate** | A fixed price every billing cycle | Required |
+| **Per Seat** | A base price that covers a number of seats, plus a price for each extra seat | Required |
 
-## Features vs Limits
+A per-seat plan counts seats with a **provisioned meter**, such as `seats`, that you pick in the flow. Its price is:
 
-**Features** are boolean gates — a tenant either has access or doesn't:
-
-```json
-{
-  "features": {
-    "advanced_analytics": true,
-    "custom_domain": true,
-    "api_access": false,
-    "sso": false
-  }
-}
+```
+total = base price + max(0, seats − included seats) × price per extra seat
 ```
 
-**Limits** are numeric caps on usage:
+For example, a base of $50 that includes 5 seats, plus $10 per extra seat, costs $80 for 8 seats.
 
-```json
-{
-  "limits": {
-    "api_calls": 10000,
-    "team_members": 5,
-    "storage_gb": 20
-  }
-}
-```
+<Note>
+  The dashboard can also price seats in **tiers**, with a flat price for each band of seats. A tiered plan cannot be published yet, because the public API has no field to describe tiers to your app. Use **Per user** pricing for plans you sell today.
+</Note>
 
-## Seat-Based Plans
+## Billing period, trial and currencies
 
-For B2B products where pricing scales with team size, plans can be seat-based:
+- **Billing period**: monthly or annual. The flow also lets you list extra periods with a discount. Checkout and renewals currently charge the plan's main period only.
+- **Free trial**: a number of days before the first charge. A subscription in trial has full access.
+- **Currencies**: give the plan a price in each currency you sell in. You can also re-price it for buyers in specific countries. See [Multi-currency](/concepts/multi-currency).
 
-| Field | Description |
+## Entitlements
+
+Entitlements are what a plan grants. There are two kinds:
+
+**Features** are on/off. A plan either grants `advanced-reporting` or it doesn't. Your app checks them with [`canAccess`](/concepts/entitlements).
+
+**Meter allowances** give the customer a quantity of a metered meter each billing period, such as 10,000 `api_calls`. Each allowance has an enforcement setting:
+
+| Enforcement | When the allowance runs out |
 |---|---|
-| `is_seat_based` | Enables seat-based billing |
-| `base_price` | Fixed base fee (covers `included_seats`) |
-| `included_seats` | Seats included in the base price |
-| `per_seat_price` | Extra cost per seat beyond `included_seats` |
-| `min_seats` | Minimum seats that must be purchased |
-| `max_seats` | Maximum seats allowed (optional cap) |
+| **Block** | Further consumption is refused with `blocked` |
+| **Track** | Consumption still succeeds and returns `warning`, so you can alert or bill for it yourself |
 
-**Pricing formula:**
+Allowances reset to the full amount at the start of every billing period. Unused credits do not carry over. See [Credits](/concepts/credits).
 
-```
-total = base_price + max(0, requested_seats - included_seats) × per_seat_price
-```
+## Feature and meter keys
 
-**Example:** Base $50/month for 10 seats, $5/seat after that.
-- 8 seats → $50
-- 15 seats → $50 + (5 × $5) = $75
+The key is what your code passes to Crovver, so it must match exactly.
 
-## Test Mode
+| Kind | Format | Example |
+|---|---|---|
+| Feature | lowercase letters, digits and single hyphens | `advanced-reporting` |
+| Meter | lowercase letters, digits and single underscores | `api_calls` |
 
-Plans have a `test_mode` flag. When `true`, Crovver routes checkout through test payment credentials (e.g., Stripe test keys). This lets you test the full checkout flow without real charges.
+A key cannot be changed after it is created. Plans created before the current dashboard may use older keys, and those keep working exactly as they are.
 
-Use test cards like `4242 4242 4242 4242` for Stripe test mode.
+## Visibility
 
-<Warning>
-  Never use a production plan for testing. Always create a separate test plan with `test_mode: true`.
-</Warning>
+A plan can be hidden from customers. A hidden plan is not listed on the pricing page or by `GET /api/public/plans`. Use it for deals you set up by hand from the dashboard.
+
+## Changing a plan that has subscribers
+
+Once a plan has subscribers, its pricing is locked, so nobody is silently charged a new price. To change the price, create a new plan, publish it and archive the old one. Existing subscribers stay on the old plan and keep renewing.
+
+## Lifecycle
+
+Plans are drafts until published, and only a published plan of a published product is sold. See [Products](/concepts/products#lifecycle-draft-published-archived).

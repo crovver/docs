@@ -1,75 +1,55 @@
 ---
-title: Tenants
-description: The billing unit in Crovver — a workspace, user, or company that holds a subscription.
+title: Customers (tenants)
+description: The billing unit that subscribes to a plan. The API calls it a tenant.
 ---
 
-A **Tenant** is the billing entity in Crovver. It is the unit that subscribes to a plan and accumulates usage. Depending on your org type, a tenant maps to different things in your app.
+A **customer** is whoever pays you: a workspace for a B2B product, or a person for a D2C product. The dashboard calls them **Customers**. The API and SDKs call them **tenants**. They are the same thing.
 
-## Tenant vs User
+## Customer, not user
 
-Crovver is **not** user-aware — it doesn't know about individual users inside a workspace. It only knows about the billing unit.
+Crovver does not know about the individual users inside a workspace. It only knows the billing unit. Your app decides which of its users belong to which customer.
 
-| Org Type | Tenant represents | Example |
+| Product type | A customer is | Example |
 |---|---|---|
-| B2B | A company, workspace, or team | "Acme Corp", "Engineering Team" |
-| D2C | An individual user | John's personal account |
+| B2B | A company, workspace or team | "Acme Corp" |
+| D2C | One person | Jane's personal account |
 
-## External Tenant ID
+## Your ID for the customer
 
-Every tenant has an `external_tenant_id` — the ID of the corresponding entity in **your** application. You set this when creating a tenant or initiating checkout.
+Every customer carries **your** ID for it, the `externalTenantId`, such as your workspace ID. You pass that ID on every call: to `CrovverProvider` as `tenantId`, to `canAccess`, to checkout and to credits. Crovver never asks you to store its own IDs.
 
-```json
-{
-  "external_tenant_id": "workspace_abc123",   // ID from your app
-  "name": "Acme Corp"
-}
+## Creating customers
+
+**B2B:** create the customer from your backend when a workspace is created in your app. Then it exists with the right name and owner before it ever reaches checkout. If you skip this, the first checkout through the React SDK creates it from the provider's `tenantName`, `userId` and `metadata.userEmail`.
+
+```typescript
+await crovver.createTenant({
+  externalTenantId: "workspace_abc123",
+  name: "Acme Corp",
+  externalUserId: "user_123",       // the billing owner in your app
+  ownerEmail: "admin@acme.com",
+  ownerName: "Jane Smith",
+});
 ```
 
-Crovver uses this to look up tenants when your app makes API calls.
+**D2C:** the first checkout creates the customer from the signed-in user, keyed on the user's ID. You can also create it ahead of time with `createTenant` and no `externalTenantId`.
 
-## Tenant Owners
+## The billing email
 
-A **Tenant Owner** is the person responsible for billing — the person whose card gets charged. For B2B tenants, this is typically the account admin who signed up.
+A customer's email is where Crovver sends billing messages, and it is how the customer signs in to their billing page. Before the billing page shows invoices or lets anyone cancel, it emails a one-time sign-in link to that address.
 
-```json
-{
-  "external_user_id": "user_123",
-  "email": "admin@acme.com",
-  "name": "Jane Smith"
-}
-```
+Set the email when the customer is created: pass `ownerEmail` to `createTenant`, or let the first checkout create the customer with the user's email. You or your team can also set it on the customer in the dashboard.
 
-## Creating Tenants
+An email added later from the browser, to a customer that was created without one, is stored but not trusted for sign-in. Otherwise anyone holding your public key could attach their own address to a customer. For a customer that already exists without one, set the email in the dashboard, under **Customers**.
 
-For **B2B apps**, you explicitly create tenants (workspaces) and link users to them.
+<Warning>
+  A customer with no billing email cannot open their billing page. Always pass the owner's email when you create a customer.
+</Warning>
 
-For **D2C apps**, tenants are auto-created on first checkout — Crovver creates a tenant for each user automatically.
+## Owner
 
-<CodeGroup>
-```bash B2B — Create Tenant
-POST /api/public/tenants
-Authorization: Bearer sk_live_...
+The **owner** is the person in your app responsible for paying, identified by your user ID, `externalUserId`. For a D2C customer, the owner is the customer.
 
-{
-  "externalTenantId": "workspace_abc123",
-  "name": "Acme Corp",
-  "ownerExternalUserId": "user_123",
-  "ownerEmail": "admin@acme.com"
-}
-```
+## When a customer counts as subscribed
 
-```bash D2C — Auto-created on checkout
-POST /api/public/checkout
-Authorization: Bearer sk_live_...
-
-{
-  "requestingUserId": "user_123",
-  "planId": "plan_pro",
-  "provider": "stripe"
-}
-```
-</CodeGroup>
-
-## Tenant Status
-
-A tenant is considered **active** if it has at least one subscription with status `active` or `trial`. Your frontend can check this via `useSubscription().isActive`.
+A customer is subscribed while it has a subscription in `trial` or `active`, or a canceled one still inside its paid period. `useSubscription().isActive` tells your frontend.
