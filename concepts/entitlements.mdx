@@ -47,7 +47,11 @@ function ExportButton() {
 ## Checking Access — API
 
 ```bash
-GET /api/public/can-access?publicKey=pk_live_...&featureKey=data-export&requestingEntityId=workspace_123
+POST /api/public/can-access
+x-public-key: pk_live_...
+Content-Type: application/json
+
+{ "requestingEntityId": "workspace_123", "featureKey": "data-export" }
 ```
 
 ```json
