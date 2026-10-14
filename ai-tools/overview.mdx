@@ -1,10 +1,12 @@
 ---
 title: Build with AI tools
-description: Give your coding assistant Crovver's docs, so it integrates against the real API.
+description: Give your coding assistant Crovver's docs as plain text, so it integrates against the real API.
 icon: "sparkles"
 ---
 
-Coding assistants integrate Crovver faster and with fewer mistakes when they can read these docs instead of guessing. Crovver serves its documentation two ways for AI tools.
+Coding assistants integrate Crovver faster and with fewer mistakes when they can read these docs instead of guessing. Crovver serves its documentation as plain text for AI tools.
+
+{/* Hidden until the Crovver MCP ships. Restore by removing this comment wrapper.
 
 ## Docs MCP server
 
@@ -51,9 +53,11 @@ Coding assistants integrate Crovver faster and with fewer mistakes when they can
   </Tab>
 </Tabs>
 
+*/}
+
 ## llms.txt
 
-For tools without MCP support, point them at a plain-text copy of the docs:
+Point your assistant at a plain-text copy of the docs:
 
 | File | Contents |
 |---|---|
@@ -61,6 +65,8 @@ For tools without MCP support, point them at a plain-text copy of the docs:
 | [`/llms-full.txt`](https://docs.crovver.com/llms-full.txt) | Every page in full, in one file |
 
 Any page is also available as Markdown by adding `.md` to its URL, for example [`/quickstart.md`](https://docs.crovver.com/quickstart.md).
+
+{/* Hidden with the MCP section above.
 
 ## A prompt to start with
 
@@ -78,3 +84,4 @@ Check every method name and field against the docs before using it.
 ```
 
 Replace the feature and meter keys with the exact keys from your dashboard, under **Product catalog → Catalog**.
+*/}
