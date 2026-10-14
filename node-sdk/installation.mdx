@@ -15,6 +15,16 @@ yarn add crovver-node
 
 **Requirements:** Node.js 18+. TypeScript is optional but fully supported.
 
+### Upgrading to 2.0
+
+2.0 removes calls that were deprecated in 1.x:
+
+- `recordUsage()`: use [`credits.consume`](#consume-credits).
+- `Plan.payment_providers`, `Plan.created_at` and `Plan.updated_at`: use `paymentProviders`, `createdAt` and `updatedAt`.
+- `organization.type` on the plans, tenant and subscriptions responses: read `plans[].product.type`.
+
+It also adds `Plan.seatTiers` and `planPeriodCharge()` for [tiered seat plans](/guides/seat-based-billing#tiered-seat-pricing), and `prorationId` on `createProrationCheckout` can be `null`.
+
 ## Initialize the Client
 
 ```typescript
@@ -59,10 +69,14 @@ The ID you pass as `externalTenantId` is your own ID for the customer. The dashb
 const { plans } = await crovver.getPlans();
 
 for (const plan of plans) {
-  // Amounts are in the currency's normal unit: 29 means 29.00
-  console.log(`${plan.name}: ${plan.pricing.currency} ${plan.pricing.amount ?? plan.pricing.basePrice}/${plan.pricing.interval}`);
+  // One period's price at a seat count, by the rules Crovver charges: flat, per seat or tiered.
+  // Amounts are in the currency's normal unit: 29 means 29.00. null = that seat count is not sold.
+  const price = planPeriodCharge(plan, 10);
+  console.log(`${plan.name}: ${plan.pricing.currency} ${price}/${plan.pricing.interval}`);
 }
 ```
+
+`planPeriodCharge` is exported next to `CrovverClient` (`import { CrovverClient, planPeriodCharge } from "crovver-node"`). Use it rather than reading `perSeatPrice`, which is 0 on a tiered plan.
 
 ## Subscriptions
 
@@ -224,22 +238,20 @@ const upgrade = await crovver.createProrationCheckout({
 });
 
 if (upgrade.requiresPayment) redirect(upgrade.checkoutUrl!);
+// else: the seats applied at once. On a tiered plan, a count inside the current band costs nothing now.
 ```
 
 See [Seat-based billing](/guides/seat-based-billing) for the full flow.
 
 ---
 
-## Usage Tracking (deprecated)
+## Usage limits (deprecated)
 
 <Warning>
-  `recordUsage` and `checkUsageLimit` are deprecated. `recordUsage` writes to a log that nothing reads, so usage recorded through it is never counted against an allowance. Use [`credits.consume`](#credits) and [`credits.balance`](#check-balance) instead.
+  `checkUsageLimit` is deprecated and `recordUsage` was removed in 2.0: usage sent through it was never counted. Use [`credits.consume`](#consume-credits) and [`credits.balance`](#check-balance) instead.
 </Warning>
 
 ```typescript
-// ❌ Deprecated — use credits.consume() instead
-await crovver.recordUsage("workspace_abc123", "api_calls", 1);
-
 // ❌ Deprecated — use credits.balance() instead
 const limit = await crovver.checkUsageLimit("workspace_abc123", "api_calls");
 console.log(`${limit.current} / ${limit.limit}`);

@@ -11,6 +11,10 @@ composer require crovver/crovver-php
 
 **Requirements:** PHP 8.0+, Composer.
 
+### Upgrading to 2.0
+
+2.0 removes `recordUsage()` and `checkUsageLimit()`, which were deprecated in 1.x and whose usage was never counted. Use [`consumeCredits()`](#credits) and `getCreditsBalance()`. It also adds `Plan::$seatTiers` and `Plan::periodCharge()` for [tiered seat plans](/guides/seat-based-billing#tiered-seat-pricing), and `ProrationCheckoutResponse::$prorationId` can be `null`.
+
 ## Initialize the Client
 
 ```php
@@ -57,9 +61,14 @@ The ID you pass as `externalTenantId` is your own ID for the customer. The dashb
 $plans = $client->getPlans();
 
 foreach ($plans->plans as $plan) {
-    echo $plan->name . ' - $' . ($plan->priceAmount / 100) . '/mo';
+    // One period's price at a seat count, by the rules Crovver charges: flat, per seat or tiered.
+    // Amounts are in the currency's normal unit: 29 means 29.00. null = that seat count is not sold.
+    $price = $plan->periodCharge(seats: 10);
+    echo $plan->name . ': ' . $plan->pricing->currency . ' ' . $price . '/' . $plan->pricing->interval;
 }
 ```
+
+Use `periodCharge()` rather than reading `perSeatPrice`, which is 0 on a [tiered plan](/guides/seat-based-billing#tiered-seat-pricing). The bands are in `$plan->seatTiers`.
 
 ## Subscriptions
 
@@ -208,23 +217,6 @@ foreach ($active as $pool) {
 
 ---
 
-## Usage Tracking (deprecated)
-
-<Warning>
-  `recordUsage` and `checkUsageLimit` are deprecated. `recordUsage` writes to a log that nothing reads, so usage recorded through it is never counted against an allowance. Use [`consumeCredits`](#credits) and `getCreditsBalance` instead.
-</Warning>
-
-```php
-// ❌ Deprecated — use consumeCredits() instead
-$client->recordUsage('workspace_abc123', 'api_calls', 1);
-
-// ❌ Deprecated — use getCreditsBalance() instead
-$limit = $client->checkUsageLimit('workspace_abc123', 'api_calls');
-echo $limit->current . ' / ' . $limit->limit;
-```
-
----
-
 ## Checkout
 
 ```php
@@ -243,7 +235,7 @@ $session = $client->createCheckoutSession(new CreateCheckoutSessionRequest(
 
 ## Seat Management
 
-Use these methods on seat-based plans to track which users occupy seats. This is separate from `recordUsage` — seat allocation is for per-user billing, not credit/quota consumption.
+Use these methods on seat-based plans to track which users occupy seats. Seat allocation is for per-user billing, not credit consumption.
 
 ### Get Seat Count
 
@@ -469,7 +461,7 @@ if ($checkout->requiresPayment) {
     // Redirect to the provider's checkout page
     header('Location: ' . $checkout->checkoutUrl);
 } else {
-    // Seat count was updated without payment (e.g. within free allowance)
+    // Seat count was updated without payment (e.g. a tiered plan's count stayed inside its band)
     echo $checkout->message;
 }
 ```
@@ -488,11 +480,12 @@ if ($checkout->requiresPayment) {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `prorationId` | string | Unique ID for this proration calculation |
-| `requiresPayment` | bool | `true` when a Stripe checkout session was created |
+| `prorationId` | string\|null | Unique ID for this proration calculation; `null` when nothing is due |
+| `requiresPayment` | bool | `true` when a checkout session was created |
 | `checkoutUrl` | string\|null | Stripe checkout URL — redirect the user here when `requiresPayment` is `true` |
 | `prorationAmount` | float | Amount charged in the plan's currency (in major units, e.g. `17.50`) |
-| `prorationDetails` | array | Breakdown: `daysRemaining`, `totalDaysInPeriod`, `perSeatPrice`, etc. |
+| `prorationDetails` | array | Breakdown: `description`, `calculation` and `amount` |
+| `invoiceId` | string\|null | The pending invoice a Khalti, eSewa or ConnectIPS proration settles |
 | `message` | string | Human-readable summary of the proration |
 
 <Note>

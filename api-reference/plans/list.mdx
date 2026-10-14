@@ -40,6 +40,7 @@ curl "https://app.crovver.com/api/public/plans" \
           "amount": null
         },
         "prices": [],
+        "seatTiers": [],
         "trial": { "days": 0, "available": false },
         "features": { "basic-analytics": true },
         "creditPools": [],
@@ -67,6 +68,7 @@ curl "https://app.crovver.com/api/public/plans" \
           { "currency": "USD", "amount": null, "basePrice": 29, "perSeatPrice": 5 },
           { "currency": "NPR", "amount": null, "basePrice": 3900, "perSeatPrice": 675 }
         ],
+        "seatTiers": [],
         "trial": { "days": 14, "available": true },
         "features": { "basic-analytics": true, "advanced-analytics": true },
         "creditPools": [
@@ -98,8 +100,20 @@ curl "https://app.crovver.com/api/public/plans" \
 
 Prices are numbers in the currency's normal unit: `29` means 29.00. A free plan has `isFree: true`, no `prices`, and `pricing.amount: null`. Extra billing periods and country prices set in the dashboard are not listed here.
 
+`seatTiers` lists the seat bands of a [tiered plan](/concepts/plans#plan-types), for every currency, ordered by currency then `minQuantity`:
+
+```json
+"seatTiers": [
+  { "currency": "USD", "minQuantity": 1,  "maxQuantity": 10,   "price": "80.00" },
+  { "currency": "USD", "minQuantity": 11, "maxQuantity": 50,   "price": "250.00" },
+  { "currency": "USD", "minQuantity": 51, "maxQuantity": null, "price": "400.00" }
+]
+```
+
+Each band's `price` (a two-decimal string) is the whole period's price for any seat count from `minQuantity` to `maxQuantity`; `null` marks the open top band. A tiered plan has `basePrice` and `perSeatPrice` of 0, and checkout refuses a seat count no band holds with `422 NO_BAND_FOR_QUANTITY`. `seatTiers` is `[]` for every other plan.
+
 <Note>
   `plans[].product.type` (`b2b` or `d2c`) is the customer type of the plan's product, and decides whether checkout keys
   the tenant on `externalTenantId` or `externalUserId`. `organization.type` is **deprecated**: one organization may sell
-  both kinds of product, so it carries the products' shared type, and `b2b` when they differ.
+  both kinds of product, so it carries the products' shared type, and `b2b` when they differ. The 2.0.0 SDKs no longer expose it.
 </Note>

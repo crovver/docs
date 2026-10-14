@@ -21,9 +21,15 @@ total = base price + max(0, seats − included seats) × price per extra seat
 
 For example, a base of $50 that includes 5 seats, plus $10 per extra seat, costs $80 for 8 seats.
 
-<Note>
-  The dashboard can also price seats in **tiers**, with a flat price for each band of seats. A tiered plan cannot be published yet, because the public API has no field to describe tiers to your app. Use **Per user** pricing for plans you sell today.
-</Note>
+A per-seat plan can instead be priced in **tiers**: bands of seats, each with one flat price for the whole period. The price is the band that holds the seat count, not seats × a rate:
+
+| Band | Price per period |
+|---|---|
+| 1–10 seats | $80 |
+| 11–50 seats | $250 |
+| 51+ seats | $400 |
+
+So 11 seats cost $250, and 40 seats cost $250 too. The bands must start at 1 and end with an open top band. The plans API lists them in `seatTiers`, and a tiered plan's `basePrice` and `perSeatPrice` are 0. See [Seat-based billing](/guides/seat-based-billing#tiered-seat-pricing).
 
 ## Billing period, trial and currencies
 

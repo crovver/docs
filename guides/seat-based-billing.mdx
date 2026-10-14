@@ -21,9 +21,18 @@ In the dashboard, open your product's plan and choose **Set price → Per Seat**
 | 15 | $50 + 5 × $5 = $75 |
 | 25 | $50 + 15 × $5 = $125 |
 
-<Note>
-  **Tiered** seat pricing, with a flat price per band of seats, can be set up but not published yet. See [Plans](/concepts/plans#plan-types).
-</Note>
+### Tiered seat pricing
+
+Choose **Tiered** instead of **Per user** to price seats in bands. Each band has one flat price for the whole period, whatever the seat count inside it:
+
+| Seats | Band | Price |
+|---|---|---|
+| 8 | 1–10 | $80 |
+| 11 | 11–50 | $250 |
+| 40 | 11–50 | $250 |
+| 60 | 51+ | $400 |
+
+The plans API returns the bands in `seatTiers`, one list per currency. Price a plan at a seat count with the SDK's `planPeriodCharge(plan, seats)` (Node) or `$plan->periodCharge($seats)` (PHP) instead of reading `perSeatPrice`, which is 0 on a tiered plan.
 
 ## 2. Check out with a seat count
 
@@ -80,5 +89,9 @@ Authorization: Bearer sk_live_...
 ```
 
 Crovver charges only for the remaining days of the current period and returns a `checkoutUrl`. After payment, the subscription's seat count rises to the new number. From the next period on, the customer pays the full price for the new seat count.
+
+On a tiered plan, the charge is the step between the two bands for the days left: going from 10 to 11 seats halfway through a month on the ladder above charges ($250 − $80) × ½ = $85. A new seat count that stays in the current band costs nothing now. It applies at once, and the response has `requiresPayment: false`, `prorationId: null` and no `checkoutUrl`.
+
+Seat counts only go up mid-period. To lower them, renew at the smaller count.
 
 Customers can also add seats themselves on their billing page.
