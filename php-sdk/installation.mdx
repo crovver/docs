@@ -42,13 +42,14 @@ $tenant = $client->createTenant(new CreateTenantRequest(
     externalTenantId: 'workspace_abc123',
     name: 'Acme Corp',
     externalUserId: 'user_123',
+    ownerEmail: 'admin@acme.com',
 ));
 
 // Retrieve a tenant
 $tenant = $client->getTenant('workspace_abc123');
 ```
 
-Tenants are created through the SDK: the id you pass as `externalTenantId` is the customer's id, and the Crovver dashboard lists the tenant as a **Customer** under it. The owner's email also becomes the customer's email when the customer has none yet; an email set in the dashboard is never overwritten.
+The ID you pass as `externalTenantId` is your own ID for the customer. The dashboard lists the tenant under **Customers**. Pass `ownerEmail`: it becomes the customer's billing email, which the customer needs to sign in to their billing page. An email set in the dashboard is never overwritten.
 
 ## Plans
 
@@ -74,10 +75,10 @@ foreach ($result->subscriptions as $sub) {
 
 ```php
 // Single-product org
-$canAccess = $client->canAccess('workspace_abc123', 'advanced_analytics');
+$canAccess = $client->canAccess('workspace_abc123', 'advanced-analytics');
 
 // Multi-product: scope to a specific product
-$canAccess = $client->canAccess('workspace_abc123', 'advanced_analytics', 'product-a');
+$canAccess = $client->canAccess('workspace_abc123', 'advanced-analytics', 'product-a');
 
 // Subscription-existence check — does this tenant have any active sub for product-a?
 $hasProduct = $client->canAccess('workspace_abc123', '', 'product-a');
@@ -85,16 +86,20 @@ $hasProduct = $client->canAccess('workspace_abc123', '', 'product-a');
 
 ## Credits
 
-Credits are the preferred way to track and gate consumption in Crovver. Each credit pool has a key (e.g. `"ai_generations"`) and is refilled by plan entitlements or add-on purchases.
+Credits meter usage against a plan's allowances. Each pool is keyed by a meter key, such as `ai_tokens`.
 
 ### Check balance
 
 ```php
 $balance = $client->getCreditsBalance('workspace_abc123');
 
-foreach ($balance['pools'] as $pool) {
-    echo $pool['poolKey'] . ': ' . $pool['remaining'] . ' remaining';
+// Keyed by pool. Each pool has baseRemaining, addonRemaining, total, limit, limitBehavior and nextExpiry.
+foreach ($balance as $poolKey => $pool) {
+    echo $poolKey . ': ' . $pool['total'] . ' of ' . $pool['limit'] . ' left';
 }
+
+// More than one product: choose the product's subscription by its slug
+$balance = $client->getCreditsBalance('workspace_abc123', productSlug: 'acme-workspace');
 ```
 
 ### Consume credits
@@ -104,17 +109,17 @@ foreach ($balance['pools'] as $pool) {
 ```php
 $result = $client->consumeCredits(
     tenantId: 'workspace_abc123',
-    poolKey: 'ai_generations',
-    amount: 1,
-    idempotencyKey: bin2hex(random_bytes(16)), // stable per user action
-    metadata: ['prompt' => 'summarise report'], // optional
+    poolKey: 'ai_tokens',
+    amount: 50,
+    idempotencyKey: 'generate-' . $job->id,      // stable per action
+    metadata: ['feature' => 'summarise'],        // optional
 );
 
-if ($result->result === 'success') {
-    echo 'Remaining: ' . $result->remaining;
-} else {
-    // result === 'insufficient_credits'
-    // Prompt the user to purchase an add-on or upgrade
+if ($result->result === 'blocked') {
+    // The allowance ran out. Nothing was deducted; $result->remaining says what is left.
+    // Offer an add-on or an upgrade.
+} elseif ($result->result === 'warning') {
+    // Deducted, but this tracked pool is now over its allowance.
 }
 ```
 
@@ -122,17 +127,19 @@ if ($result->result === 'success') {
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `tenantId` | string | Yes | Your tenant/workspace ID |
-| `poolKey` | string | Yes | Credit pool identifier defined in your plan |
-| `amount` | int | Yes | Units to deduct |
-| `idempotencyKey` | string | Yes | Unique key per action; prevents double-deduction |
-| `metadata` | array\|null | No | Arbitrary key/value pairs stored with the event |
+| `tenantId` | string | Yes | Your ID for the customer |
+| `poolKey` | string | Yes | The meter key, such as `ai_tokens` |
+| `amount` | int | Yes | Positive whole number of units to deduct |
+| `idempotencyKey` | string | Yes | Unique per action; prevents double deduction |
+| `metadata` | array\|null | No | Stored with the consumption event |
+| `subscriptionId` | string\|null | No | Target one subscription |
+| `productSlug` | string\|null | No | Target the customer's subscription to one product |
 
 **`ConsumeResponse` fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `result` | string | `"success"` or `"insufficient_credits"` |
+| `result` | string | `"allowed"`, `"warning"` or `"blocked"` |
 | `remaining` | int | Credits left in the pool after deduction |
 | `alreadyProcessed` | bool | `true` when the idempotency key was already seen |
 | `poolKey` | string | Echoed pool key |
@@ -149,7 +156,7 @@ Add-ons let tenants purchase extra credit packs without changing their base plan
 $addons = $client->listAvailableAddons('workspace_abc123');
 
 foreach ($addons as $addon) {
-    echo $addon['name'] . ': ' . $addon['creditQty'] . ' credits — '
+    echo $addon['display_name'] . ': ' . $addon['credit_qty'] . ' credits for '
         . $addon['currency'] . ' ' . $addon['amount'];
 }
 ```
@@ -167,11 +174,11 @@ $purchase = $client->purchaseAddon(
 );
 
 if ($purchase->requiresPayment) {
-    // Redirect to Stripe checkout
+    // Send the customer to pay
     header('Location: ' . $purchase->checkoutUrl);
     exit;
 } else {
-    // Credits added immediately (free add-on or already processed)
+    // A free add-on: the credits are already granted
     echo $purchase->creditQty . ' credits added';
 }
 ```
@@ -181,7 +188,7 @@ if ($purchase->requiresPayment) {
 | Field | Type | Description |
 |-------|------|-------------|
 | `purchaseId` | string | Unique purchase record ID |
-| `checkoutUrl` | string\|null | Stripe checkout URL — present when `requiresPayment` is `true` |
+| `checkoutUrl` | string\|null | Where the customer pays. `null` for a free add-on |
 | `requiresPayment` | bool | `true` when a checkout session was created |
 | `addonName` | string | Display name of the add-on |
 | `creditQty` | int | Credits that will be added on completion |
@@ -195,7 +202,7 @@ if ($purchase->requiresPayment) {
 $active = $client->getActiveAddonCredits('workspace_abc123');
 
 foreach ($active as $pool) {
-    echo $pool['poolKey'] . ': ' . $pool['remaining'] . ' remaining';
+    echo $pool['pool_key'] . ': ' . $pool['addon_remaining'] . ' add-on credits left';
 }
 ```
 
@@ -204,7 +211,7 @@ foreach ($active as $pool) {
 ## Usage Tracking (deprecated)
 
 <Warning>
-  `recordUsage` and `checkUsageLimit` are deprecated. They write to a simple event log with no idempotency and do not integrate with the credit pool system. Use [`consumeCredits`](#credits) instead.
+  `recordUsage` and `checkUsageLimit` are deprecated. `recordUsage` writes to a log that nothing reads, so usage recorded through it is never counted against an allowance. Use [`consumeCredits`](#credits) and `getCreditsBalance` instead.
 </Warning>
 
 ```php
