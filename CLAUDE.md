@@ -54,15 +54,17 @@ Crovver is a **subscription management layer** for SaaS products. It sits betwee
 ### Core Data Model
 | Entity | Description |
 |--------|-------------|
-| **Org** | A SaaS company using Crovver. Type `b2b` = workspace-based customers; `d2c` = individual users |
-| **Tenant** | The billing unit — a workspace (B2B) or user (D2C). Identified via `external_tenant_id` |
-| **Plan** | Pricing tier with `features` (boolean flags) and `limits` (numeric caps). Flat or seat-based |
-| **Subscription** | Tenant ↔ Plan binding. Statuses: pending → trialing → active → past_due → canceled |
+| **Org** | A SaaS company using Crovver. Owns products, keys, providers, team and customers |
+| **Product** | Something the org sells. `b2b` = customers are workspaces; `d2c` = customers are individuals. Draft → published → archived |
+| **Tenant** | The billing unit, shown as **Customer** in the dashboard. A workspace (B2B) or user (D2C), identified by `external_tenant_id` |
+| **Plan** | Free, Flat Rate or Per Seat. Grants features (on/off, hyphen keys like `data-export`) and meter allowances (underscore keys like `api_calls`) |
+| **Subscription** | Tenant ↔ Plan binding. Statuses: pending, trial, active, past_due, pending_cancel, canceled, expired |
 | **Entitlement** | `canAccess(tenantId, featureKey)` — checks plan features; trial counts as active |
 
 ### API Key Types
-- `pk_live_` / `pk_test_` — public keys, safe for browser (React SDK)
-- `sk_live_` / `sk_test_` — secret keys, backend only (Node SDK, PHP SDK)
+- `pk_live_` — public keys, safe for browser (React SDK). Accepted only on the seven read/token endpoints listed in `authentication/public-keys.mdx`
+- `sk_live_` — secret keys, backend only (Node SDK, PHP SDK)
+- Every key is `live`-prefixed; test mode is a separate org connected to Stripe test keys (`guides/test-mode.mdx`)
 
 ### Checkout Flow
 1. SaaS frontend calls `redirectToCheckout()` on the React SDK
@@ -77,4 +79,11 @@ Crovver is a **subscription management layer** for SaaS products. It sits betwee
 |---------|-----------|-------------|-----------|
 | Public SDK | `/api/public/*` | Bearer `sk_live_` key | crovver-node, crovver-php |
 | Admin dashboard | `/api/admin/*` | Session cookie | Dashboard UI |
-| Webhooks | `/api/webhooks/*` | HMAC signature | Stripe, Khalti, eSewa |
+| Webhooks | `/api/webhooks/*` | HMAC signature (Stripe) or server-side verification (ConnectIPS) | Stripe, ConnectIPS |
+
+Khalti and eSewa exist in code but are hidden (`HIDDEN_PROVIDERS` in crovver-mvp) until verified, so the docs do not offer them.
+
+### Writing rules for these docs
+- Document the **published** SDKs (npm `crovver-node`, `crovver-react`; Packagist `crovver/crovver-php`), not unreleased branches.
+- Check every field name and response shape against the crovver-mvp route before writing it; prices on the wire are numbers in major units (`29` = 29.00).
+- Use the dashboard's labels for navigation, such as **Product catalog → Catalog → Features** and **Developers → API Keys**.
