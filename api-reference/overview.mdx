@@ -6,25 +6,24 @@ description: Complete reference for the Crovver API.
 ## Base URL
 
 ```
-https://api.crovver.com
+https://app.crovver.com
 ```
 
-For self-hosted instances, replace with your own URL.
+Every endpoint in this reference lives under `/api/public/`.
 
 ## Authentication
 
-All endpoints require one of three credentials. See [Authentication](/authentication/overview) for details.
+Every endpoint needs a key. See [Authentication](/authentication/overview) for details.
 
 ```bash
-# Public key (browser/SDK)
+# Public key: browser, React SDK. Only the endpoints listed on the Public keys page.
 x-public-key: pk_live_...
 
-# Secret key (backend)
+# Secret key: your backend. Every endpoint.
 Authorization: Bearer sk_live_...
-
-# Service key (internal)
-x-service-key: <value>
 ```
+
+A public key sent to a secret-key endpoint is refused with `401`, including in the `Authorization` header.
 
 ## Response Format
 
@@ -58,8 +57,9 @@ All responses follow this envelope:
 |---|---|---|
 | `MISSING_PUBLIC_KEY` | 400 | `publicKey` query param not provided |
 | `INVALID_PUBLIC_KEY` | 401 | Public key not found or inactive |
-| `INVALID_SERVICE_KEY` | 401 | Service key mismatch |
 | `TENANT_NOT_FOUND` | 404 | No tenant with the given external ID |
-| `NO_ACTIVE_SUBSCRIPTION` | 404 | Tenant has no active subscription |
+| `NO_SUBSCRIPTION` | 402 | The customer has no live subscription, on credit endpoints |
+| `SUBSCRIPTION_ENDING` | 409 | Checkout for a product whose canceled subscription is still in its paid period |
+| `CURRENCY_NOT_SUPPORTED` | 422 | The plan or add-on has no price in that currency |
 | `MISSING_REQUIRED_FIELDS` | 400 | Required body/query params missing |
 

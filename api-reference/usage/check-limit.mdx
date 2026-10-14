@@ -5,7 +5,7 @@ description: Deprecated. Use credits/balance + credits/consume instead.
 ---
 
 <Warning>
-  This endpoint is deprecated. It checks the legacy `usage_events` table, which is no longer the source of truth for metered billing. Use [`GET /api/public/credits/balance`](/api-reference/credits/balance) to read remaining credits and [`POST /api/credits/consume`](/api-reference/credits/consume) to deduct them.
+  This endpoint is deprecated. It still answers from the customer's credit balance, but it has no product scoping and no idempotent counterpart. Use [`GET /api/public/credits/balance`](/api-reference/credits/balance) to read remaining credits and [`POST /api/public/credits/consume`](/api-reference/credits/consume) to deduct them.
 </Warning>
 
 Returns the tenant's current usage for a metric and whether they're within the limit defined by their plan.
@@ -26,11 +26,11 @@ Returns the tenant's current usage for a metric and whether they're within the l
 
 ## Authentication
 
-Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **public key** (`x-public-key`).
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
 
 <RequestExample>
 ```bash cURL
-curl -X POST "https://api.crovver.com/api/public/check-usage-limit" \
+curl -X POST "https://app.crovver.com/api/public/check-usage-limit" \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{

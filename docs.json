@@ -42,15 +42,16 @@
           {
             "group": "Overview",
             "icon": "book-open",
-            "pages": ["introduction", "quickstart"]
+            "pages": ["introduction", "quickstart", "ai-tools/overview"]
           },
           {
             "group": "Core Concepts",
             "icon": "blocks",
             "pages": [
               "concepts/organizations",
-              "concepts/tenants",
+              "concepts/products",
               "concepts/plans",
+              "concepts/tenants",
               "concepts/subscriptions",
               "concepts/entitlements",
               "concepts/credits",
@@ -136,7 +137,9 @@
             "icon": "credit-card",
             "pages": [
               "api-reference/subscriptions/status",
-              "api-reference/subscriptions/cancel"
+              "api-reference/subscriptions/list",
+              "api-reference/subscriptions/cancel",
+              "api-reference/subscriptions/renew"
             ]
           },
           {
@@ -177,12 +180,9 @@
             ]
           },
           {
-            "group": "Features & Usage",
+            "group": "Features",
             "icon": "bar-chart-2",
-            "pages": [
-              "api-reference/features/can-access",
-              "api-reference/usage/check-limit"
-            ]
+            "pages": ["api-reference/features/can-access"]
           },
           {
             "group": "Plans",
@@ -196,6 +196,16 @@
               "api-reference/tenants/create",
               "api-reference/tenants/list"
             ]
+          },
+          {
+            "group": "Invoices",
+            "icon": "receipt",
+            "pages": ["api-reference/billing/invoices"]
+          },
+          {
+            "group": "Payment Providers",
+            "icon": "wallet",
+            "pages": ["api-reference/providers/supported"]
           },
           {
             "group": "Deprecated",

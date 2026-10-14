@@ -1,21 +1,25 @@
 ---
 title: List Plans
 api: GET /api/public/plans
-description: Get all active plans for your organization.
-authMethod: "none"
+description: Get every plan your organization currently sells.
 ---
 
-Returns all active plans for the organization associated with the provided public key. Use this to build your pricing page. Test mode plans are hidden when authenticating via service key.
+Returns every published plan of every published product in your organization. Use it to build your own pricing page. Drafts, archived plans and hidden plans are not listed.
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`). Call it from your backend. The hosted pricing page needs no call from you.
 
 ## Query Parameters
 
-<ParamField query="publicKey" type="string" required>
-  Your public key (`pk_live_...` or `pk_test_...`)
+<ParamField query="productSlug" type="string">
+  Only list the plans of this product.
 </ParamField>
 
 <RequestExample>
 ```bash cURL
-curl "https://app.crovver.com/api/public/plans?publicKey=pk_live_..."
+curl "https://app.crovver.com/api/public/plans" \
+  -H "Authorization: Bearer sk_live_..."
 ```
 </RequestExample>
 
@@ -33,14 +37,11 @@ curl "https://app.crovver.com/api/public/plans?publicKey=pk_live_..."
           "interval": "monthly",
           "isSeatBased": false,
           "currency": "USD",
-          "amount": 0
+          "amount": null
         },
-        "prices": [
-          { "currency": "USD", "amount": 0 },
-          { "currency": "NPR", "amount": 0 }
-        ],
+        "prices": [],
         "trial": { "days": 0, "available": false },
-        "features": { "basic_analytics": true },
+        "features": { "basic-analytics": true },
         "creditPools": [],
         "product": { "id": "prod_abc", "name": "My SaaS", "description": null, "type": "b2b" },
         "paymentProviders": [{ "provider_type": "stripe", "is_active": true }],
@@ -59,15 +60,15 @@ curl "https://app.crovver.com/api/public/plans?publicKey=pk_live_..."
           "basePrice": 29,
           "includedSeats": 5,
           "perSeatPrice": 5,
-          "minSeats": null,
+          "minSeats": 1,
           "maxSeats": null
         },
         "prices": [
-          { "currency": "USD", "basePrice": "29.00", "perSeatPrice": "5.00" },
-          { "currency": "NPR", "basePrice": "3900.00", "perSeatPrice": "675.00" }
+          { "currency": "USD", "amount": null, "basePrice": 29, "perSeatPrice": 5 },
+          { "currency": "NPR", "amount": null, "basePrice": 3900, "perSeatPrice": 675 }
         ],
         "trial": { "days": 14, "available": true },
-        "features": { "basic_analytics": true, "advanced_analytics": true },
+        "features": { "basic-analytics": true, "advanced-analytics": true },
         "creditPools": [
           {
             "poolKey": "api_calls",
@@ -75,7 +76,7 @@ curl "https://app.crovver.com/api/public/plans?publicKey=pk_live_..."
             "limitPerPeriod": 10000,
             "refillBehavior": "reset",
             "rolloverCap": null,
-            "limitBehavior": "soft"
+            "limitBehavior": "hard"
           }
         ],
         "product": { "id": "prod_abc", "name": "My SaaS", "description": null, "type": "b2b" },
@@ -94,6 +95,8 @@ curl "https://app.crovver.com/api/public/plans?publicKey=pk_live_..."
 }
 ```
 </ResponseExample>
+
+Prices are numbers in the currency's normal unit: `29` means 29.00. A free plan has `isFree: true`, no `prices`, and `pricing.amount: null`. Extra billing periods and country prices set in the dashboard are not listed here.
 
 <Note>
   `plans[].product.type` (`b2b` or `d2c`) is the customer type of the plan's product, and decides whether checkout keys

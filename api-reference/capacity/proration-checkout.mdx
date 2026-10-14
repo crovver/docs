@@ -6,7 +6,7 @@ description: Create a checkout session for a mid-cycle seat upgrade with prorati
 
 When a tenant needs more seats mid-billing cycle, this endpoint calculates the prorated charge for the remaining days and creates a Stripe checkout session for that amount.
 
-The actual capacity upgrade happens **after payment confirmation** via the Stripe webhook (`event_type: seat_proration`). For non-Stripe providers (Khalti, eSewa), an invoice is generated instead.
+The actual capacity upgrade happens **after payment confirmation** via the Stripe webhook (`event_type: seat_proration`). For ConnectIPS, the customer pays a proration invoice through the gateway, and the seats are added once it is verified.
 
 ## Request Body
 
@@ -32,7 +32,7 @@ The actual capacity upgrade happens **after payment confirmation** via the Strip
 
 ## Authentication
 
-Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key` + `?orgId=`).
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
 
 <RequestExample>
 ```bash cURL

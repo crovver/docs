@@ -1,0 +1,61 @@
+---
+title: List Invoices
+api: GET /api/public/billing/invoices
+description: A customer's invoices, newest first.
+---
+
+Returns the customer's invoices: subscription charges, renewals, seat changes and add-on purchases. Amounts are strings in the currency's normal unit, so `"29.00"` means 29.00.
+
+## Query Parameters
+
+<ParamField query="externalTenantId" type="string" required>
+  Your ID for the customer.
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
+
+<RequestExample>
+```bash cURL
+curl "https://app.crovver.com/api/public/billing/invoices?externalTenantId=workspace_123" \
+  -H "Authorization: Bearer sk_live_..."
+```
+
+```typescript Node.js
+const { invoices } = await crovver.getInvoices("workspace_123");
+```
+
+```php PHP
+$result = $client->getInvoices('workspace_123');
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "invoices": [
+      {
+        "id": "9a41e2b6-2db4-41e4-9d60-3a8062fd1998",
+        "invoiceNumber": "INV-USD-2026-000003",
+        "invoiceType": "subscription",
+        "totalAmount": "758.40",
+        "currency": "USD",
+        "status": "paid",
+        "periodStart": "2026-08-13T00:00:00.000Z",
+        "periodEnd": "2027-08-13T00:00:00.000Z",
+        "issuedAt": "2026-10-13T18:14:04.123Z",
+        "dueDate": "2027-08-13T00:00:00.000Z",
+        "paidAt": "2026-10-13T18:16:41.306Z",
+        "paymentProvider": null,
+        "hostedInvoiceUrl": null,
+        "invoicePdf": null,
+        "planName": "Pro"
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
