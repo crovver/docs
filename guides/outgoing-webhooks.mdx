@@ -7,12 +7,16 @@ Crovver can push subscription lifecycle events to HTTP endpoints you register. W
 
 ## Setting Up an Endpoint
 
-1. Go to **Developers → Webhooks** in your Crovver dashboard
-2. Click **+ Add Endpoint**
-3. Enter your HTTPS URL — e.g. `https://api.your-app.com/webhooks/crovver`
-4. Copy the signing secret shown — **it is displayed only once and cannot be retrieved again**
+1. Go to **Developers → Webhooks** in your Crovver dashboard.
+2. Click **Add endpoint**.
+3. Enter your HTTPS URL, such as `https://api.your-app.com/webhooks/crovver`.
+4. Copy the signing secret. **It is shown only once and cannot be retrieved again.**
 
-Your endpoint must respond with a `2xx` status within **5 seconds**. Any other response or a timeout is recorded as a failed delivery.
+An endpoint receives every event type. Ignore the types you don't need.
+
+The URL must be reachable from the public internet. Addresses on private networks, loopback and cloud metadata addresses are refused, both when you save the endpoint and when Crovver delivers to it. Redirects are not followed.
+
+Your endpoint must respond with a `2xx` status within **5 seconds**. Any other response or a timeout counts as a failed delivery and is retried. See Delivery & Retries below.
 
 ## Event Envelope
 
@@ -66,26 +70,31 @@ on its own to decide which product's balance moved.
 
 | Event | When it fires |
 |---|---|
-| `subscription.created` | A subscription is manually created from the dashboard |
-| `subscription.activated` | A subscription goes live for the first time — a Stripe checkout completes, a redirect-gateway payment is verified (eSewa, Khalti, ConnectIPS), or an invoice is marked paid |
+| `subscription.created` | A subscription is created from the dashboard |
+| `subscription.activated` | A subscription goes live for the first time — a Stripe checkout completes, a ConnectIPS payment is verified, or an invoice is marked paid |
 | `subscription.updated` | Status, billing period, or seat count changes |
 | `subscription.renewed` | A recurring billing cycle payment succeeds and the period advances |
 | `subscription.canceled` | Subscription is canceled by an admin, the tenant, or the payment provider |
 | `subscription.expiring` | A subscription's period ends within 7 days and it will not auto-renew — see [Expiry warnings](#expiry-warnings) |
 | `credits.refilled` | A new credit window began on a contract that was already paid for — see [Credit balances](#credit-balances) |
 | `addon.purchased` | An add-on purchase completed and its credits were granted |
+| `tenant.at_risk` | Crovver's daily risk check flags a customer as likely to churn, or raises its risk level. `data` carries `tenant_id`, `risk_level`, `signals`, `mrr_amount`, `currency` and `days_until_renewal` |
 | `webhook.test` | Sent when you click **Send Test** from the dashboard |
 
 <Info>
-When a free trial ends and the first charge succeeds, both `subscription.updated` (status: `trialing → active`) and `subscription.renewed` (payment received) fire in sequence. These represent distinct state changes — handle them independently and use the top-level `id` to deduplicate if needed.
+When a free trial ends and the first charge succeeds, both `subscription.updated` (status: `trial → active`) and `subscription.renewed` (payment received) fire in sequence. These represent distinct state changes — handle them independently and use the top-level `id` to deduplicate if needed.
 </Info>
 
 <Info>
-Redirect-gateway checkouts (eSewa, Khalti, ConnectIPS) verify the payment server-side after the
+ConnectIPS checkouts verify the payment server-side after the
 browser returns, then emit `subscription.activated` with the tenant's freshly granted credits. If
 you integrated against these gateways before, note that this event is newly emitted — previously
 an activation through them produced no webhook at all.
 </Info>
+
+<Warning>
+A **free plan** checkout activates the subscription without sending `subscription.activated`. Until that is added, check the customer's status from your backend when they return from checkout.
+</Warning>
 
 ## Expiry Warnings
 
@@ -340,22 +349,22 @@ Always verify the signature against the **raw request body bytes** — not a re-
 
 ## Delivery & Retries
 
-Crovver delivers each event once. If your endpoint is down or returns a non-2xx status, the delivery is recorded as failed.
+If your endpoint is down, times out or returns a non-2xx status, Crovver retries the delivery automatically. Retries wait 1 minute, 5 minutes, 30 minutes, 2 hours and 8 hours, so an event is attempted up to 6 times over about 11 hours. After that it stays failed.
 
-In **Developers → Webhooks**, click **View Deliveries** on any endpoint to see:
-- The full JSON payload that was sent
-- The HTTP status and response body your server returned
-- Attempt count and timestamp
+In **Developers → Webhooks**, open an endpoint to see its deliveries:
+- the full JSON payload that was sent
+- the HTTP status and response body your server returned
+- the attempt count and time
 
-Click **Retry** on any failed delivery to re-fire it with the same `id` — so your server can safely deduplicate.
+Click **Retry** on a failed delivery to send it again by hand. It keeps the same `id`, so your server can deduplicate.
 
 <Tip>
-Use the top-level `id` field as an idempotency key. Store processed event IDs and skip duplicates to handle retries safely.
+Use the top-level `id` field as an idempotency key. Store processed event IDs and skip duplicates. Retries mean the same event can arrive more than once.
 </Tip>
 
 ## Testing Locally
 
-Use the **Send Test** button in your dashboard to fire a `webhook.test` event to any registered endpoint. The delivery and its payload will appear in the **View Deliveries** log immediately.
+Open an endpoint and use **Send Test** to send a sample event of the type you pick, or a `webhook.test` event. The delivery and its payload appear in the endpoint's deliveries at once. Test deliveries are not retried.
 
 To receive events on your local machine, expose it with a tunneling tool like [ngrok](https://ngrok.com):
 

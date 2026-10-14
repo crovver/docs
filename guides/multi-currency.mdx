@@ -1,0 +1,47 @@
+---
+title: Multi-Currency Pricing
+description: Accept payments in multiple currencies without duplicating your plans.
+---
+
+Crovver lets a single plan carry prices in multiple currencies. The tenant's currency is chosen at checkout and locked for the lifetime of their subscription — all renewals and add-on purchases use the same currency automatically.
+
+## How It Works
+
+You set per-currency prices on each plan in the dashboard, for example USD paid through Stripe and NPR paid through ConnectIPS. As a SaaS developer, the only thing you need to do is pass the correct `currency` and `provider` when creating a checkout session.
+
+## Initiating Checkout in a Specific Currency
+
+```bash
+POST /api/public/checkout
+Authorization: Bearer sk_live_...
+
+{
+  "externalTenantId": "workspace_123",
+  "externalUserId": "user_123",
+  "planId": "6f1c…",
+  "currency": "NPR",
+  "provider": "connectips",
+  "successUrl": "https://app.com/welcome",
+  "cancelUrl": "https://app.com/pricing"
+}
+```
+
+If you omit `currency`, Crovver uses the plan's first currency. If you pass a currency that has no price configured, you'll get a `422 CURRENCY_NOT_SUPPORTED` error.
+
+## Currency is Locked After Checkout
+
+Once a tenant subscribes, their currency cannot change. You don't need to track or pass currency for subsequent API calls — Crovver resolves it from the subscription automatically.
+
+This also applies to add-on purchases: a customer on an NPR subscription can only buy add-ons that have an NPR price.
+
+## Checking Supported Providers by Currency
+
+Different providers support different currencies. You can ask Crovver which providers it supports:
+
+```bash
+GET /api/public/supported-providers
+```
+
+The hosted pricing page already offers the right providers. You only need this if you build your own pricing page.
+
+Use this to show only relevant payment options in your UI before redirecting to checkout.
