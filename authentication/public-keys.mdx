@@ -1,60 +1,54 @@
 ---
-title: Public Keys
-description: Safe-to-expose keys for frontend and React SDK usage.
+title: Public keys
+description: The browser-safe key the React SDK uses.
 ---
 
-Public keys are read-only credentials designed to be used in browser code. They identify your organization without granting write access.
-
-## Format
+A public key identifies your organization from browser code. It is safe to ship in your frontend bundle.
 
 ```
-pk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   ← production
-pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   ← test mode
+pk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-## Capabilities
+## What a public key can do
 
-| Action | Allowed |
+| Endpoint | What it does |
 |---|---|
-| Read subscription status | ✅ |
-| Check feature access | ✅ |
-| Initiate checkout (get a token) | ✅ |
-| Initiate portal redirect | ✅ |
-| Create or cancel subscriptions | ❌ |
-| Access other tenants' data | ❌ |
+| `POST /api/public/auth/checkout-token` | Starts hosted checkout |
+| `POST /api/public/auth/portal-token` | Opens the customer's billing page |
+| `GET /api/public/subscriptions/status` | Reads a customer's subscription status |
+| `POST /api/public/can-access` | Checks a feature |
+| `GET /api/public/credits/balance` | Reads credit balances |
+| `GET /api/public/tenants/{id}/addons/available` | Lists add-ons the customer can buy |
+| `GET /api/public/tenants/{id}/addons/active` | Lists the customer's add-on credits |
+
+Every other endpoint needs a [secret key](/authentication/api-keys) and refuses a public key with `401`.
+
+Because the browser decides which customer ID it sends, treat these reads as hints for your UI. Before doing protected work, check access again from your backend with the secret key.
 
 ## Usage
 
-### React SDK
-
-Pass your public key to `CrovverProvider`:
+The React SDK sends the key for you:
 
 ```tsx
 <CrovverProvider
   config={{
-    publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY,
-    tenantId: currentUser.id,
+    publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
+    tenantId: workspace.id,
   }}
 >
 ```
 
-### Direct API Call
-
-Accepted as a query param or header:
+To call an endpoint directly, send it as a header or a query parameter:
 
 ```bash
-# Query param
-GET /api/public/subscriptions/status?publicKey=pk_live_...&tenantId=workspace_123
-
-# Header
-GET /api/public/can-access?featureKey=export&requestingEntityId=workspace_123
+GET /api/public/can-access?featureKey=data-export&requestingEntityId=workspace_123
 x-public-key: pk_live_...
 ```
 
-## Generating Keys
+## Billing page sign-in
 
-From the Crovver dashboard: **Settings → API Keys → Generate Public Key**.
+A public key can open the billing page for any customer ID, so the billing page asks the customer to prove who they are. It emails a one-time sign-in link to the customer's billing email before it shows invoices or allows a cancellation. You don't need to do anything for this, beyond giving each customer an email. See [Customers](/concepts/tenants#the-billing-email).
 
-<Warning>
-  Even though public keys are safe to expose, rotate them if you suspect they've been compromised. All existing sessions using the old key will stop working immediately.
-</Warning>
+## Creating keys
+
+In the dashboard, go to **Developers → API Keys**. Your first public and secret keys are shown when you create your organization.

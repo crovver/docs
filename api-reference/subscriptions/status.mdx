@@ -14,7 +14,7 @@ Pass your public key as a query parameter (`?publicKey=pk_live_...`). No bearer 
 ## Request
 
 <ParamField query="publicKey" type="string" required>
-  Your public key (`pk_live_...` or `pk_test_...`)
+  Your public key (`pk_live_...`)
 </ParamField>
 
 <ParamField query="tenantId" type="string" required>
@@ -60,7 +60,9 @@ Pass your public key as a query parameter (`?publicKey=pk_live_...`). No bearer 
         <ResponseField name="productSlug" type="string | null">URL-safe product identifier (e.g. `ats`). Use this to scope subsequent `can-access` calls to the same product.</ResponseField>
         <ResponseField name="billingInterval" type="string" />
         <ResponseField name="features" type="string[]">Feature keys included in this plan</ResponseField>
-        <ResponseField name="limits" type="object">Numeric usage limits</ResponseField>
+        <ResponseField name="isSeatBased" type="boolean" />
+        <ResponseField name="isFree" type="boolean" />
+        <ResponseField name="creditPools" type="object[]">The plan's meter allowances: `poolKey`, `displayName`, `limitPerPeriod`, `refillBehavior`, `limitBehavior`</ResponseField>
       </Expandable>
     </ResponseField>
   </Expandable>
@@ -100,8 +102,12 @@ curl "https://app.crovver.com/api/public/subscriptions/status?publicKey=pk_live_
       "productName": "Product A",
       "productSlug": "product-a",
       "billingInterval": "monthly",
-      "features": ["feature_x", "feature_y"],
-      "limits": { "api_calls": 10000 }
+      "features": ["basic-reporting", "data-export"],
+      "isSeatBased": false,
+      "isFree": false,
+      "creditPools": [
+        { "poolKey": "api_calls", "displayName": "API calls", "limitPerPeriod": 10000, "refillBehavior": "reset", "rolloverCap": null, "limitBehavior": "hard" }
+      ]
     }
   }
 }

@@ -11,7 +11,7 @@ Checks whether the tenant's active plan includes a given feature key. Supports m
 import { useFeatureAccess } from 'crovver-react';
 
 function ExportButton() {
-  const { hasAccess, isLoading, redirectToUpgrade } = useFeatureAccess('data_export');
+  const { hasAccess, isLoading, redirectToUpgrade } = useFeatureAccess('data-export');
 
   if (isLoading) return null;
 
@@ -87,7 +87,7 @@ const { hasAccess: hasProductA } = useFeatureAccess(undefined, {
 ### Check multiple features
 
 ```tsx
-const analytics = useFeatureAccess('advanced_analytics');
-const exports   = useFeatureAccess('data_export');
-const api       = useFeatureAccess('api_access');
+const analytics = useFeatureAccess('advanced-analytics');
+const exports   = useFeatureAccess('data-export');
+const api       = useFeatureAccess('api-access');
 ```

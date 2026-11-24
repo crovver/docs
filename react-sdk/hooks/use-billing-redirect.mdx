@@ -44,7 +44,7 @@ Redirects the user to the Crovver pricing/checkout page. Internally:
 
 1. Calls `POST /api/public/auth/checkout-token` with the tenant's public key
 2. Receives a signed JWT token
-3. Redirects to `{ecomUrl}/pricing?token={jwt}`
+3. Redirects to Crovver's hosted pricing page, `{portalUrl}/pricing?token={jwt}`
 
 ### Options
 
@@ -69,7 +69,7 @@ Redirects the user to the Crovver pricing/checkout page. Internally:
 redirectToCheckout();
 
 // Upgrade prompted by a specific locked feature
-redirectToCheckout({ requiredFeature: 'advanced_analytics' });
+redirectToCheckout({ requiredFeature: 'advanced-analytics' });
 
 // Redirect to a specific plan
 redirectToCheckout({ requiredPlan: 'plan_enterprise' });

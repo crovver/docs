@@ -1,59 +1,59 @@
 ---
-title: API Keys (Secret Keys)
-description: Server-side credentials for backend API calls.
+title: Secret keys
+description: Server-side keys with full access to your organization's API.
 ---
 
-Secret keys grant full programmatic access to your organization's data. They must be kept server-side and never exposed in client code.
-
-## Format
+A secret key gives full API access to your organization. Keep it on your servers only.
 
 ```
-sk_live_<your_key>   ← production
-sk_test_<your_key>   ← test mode
+sk_live_<your_key>
 ```
 
 ## Usage
 
-Pass the key as a Bearer token in the `Authorization` header:
+Send it as a Bearer token:
 
 ```bash
-POST /api/public/checkout
+POST /api/public/tenants
 Authorization: Bearer sk_live_...
 Content-Type: application/json
 
 {
-  "requestingUserId": "user_123",
-  "planId": "plan_pro",
-  "provider": "stripe"
+  "externalTenantId": "workspace_abc123",
+  "name": "Acme Corp",
+  "externalUserId": "user_123",
+  "ownerEmail": "admin@acme.com"
 }
 ```
 
-## Capabilities
+The Node and PHP SDKs take it once, when you create the client:
 
-Secret keys can do everything — read and write:
+```typescript
+const crovver = new CrovverClient({ apiKey: process.env.CROVVER_SECRET_KEY! });
+```
 
-- Create checkout sessions
-- Create and cancel subscriptions
-- Read subscription status for any tenant
-- Manage seat allocations
-- Record usage events
+## What it can do
 
-## Security
+Everything the public API offers, including:
+
+- create customers
+- create checkout sessions
+- consume credits
+- allocate seats and create proration checkouts
+- cancel and renew subscriptions
+- list plans, subscriptions and invoices
+
+## Keep it secret
 
 <Warning>
-  Never put a secret key in client-side code, environment variables prefixed
-  with `NEXT_PUBLIC_`, or any file that gets bundled to the browser.
+  Never put a secret key in browser code, in an environment variable prefixed `NEXT_PUBLIC_`, or in any file that is bundled for the browser.
 </Warning>
 
-Store it in a server-side environment variable:
-
 ```bash
-# .env (server-only)
+# server-only environment
 CROVVER_SECRET_KEY=sk_live_...
 ```
 
-## Generating Keys
+## Creating and rotating keys
 
-From the Crovver dashboard: **Settings → API Keys → Generate Secret Key**.
-
-Keys are only shown once at creation — store them securely immediately. If lost, generate a new one and rotate the old one.
+In the dashboard, go to **Developers → API Keys**. A key is shown once, when it is created, so store it right away. If you lose one, create a new key and revoke the old one.

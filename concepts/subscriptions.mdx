@@ -1,97 +1,72 @@
 ---
 title: Subscriptions
-description: The binding between a tenant and a plan.
+description: A customer's binding to a plan, from checkout to renewal and cancellation.
 ---
 
-A **Subscription** is the record that links a tenant to a plan. It tracks billing periods, payment status, trial dates, and seat counts. Every status change is recorded to an immutable event log.
+A **subscription** links one customer to one plan. It records the billing period, the currency, the seat count and the payment state. A customer can hold one live subscription per [product](/concepts/products). Every change is written to the subscription's activity history, which you can see in the dashboard.
 
-## Subscription Statuses
+## How a subscription starts
 
-| Status | Description |
+| Path | How it activates |
 |---|---|
-| `pending` | Created but not yet activated (awaiting payment confirmation) |
-| `trial` | In a free trial period |
-| `active` | Paid and active |
-| `past_due` | Payment failed — grace period |
-| `pending_cancel` | Cancellation requested; access continues until `currentPeriodEnd` |
-| `canceled` | Canceled. For manual billing subscriptions, this is set immediately on cancellation; for recurring subscriptions, it is set at period end. |
-| `expired` | Trial or subscription ended without renewal |
+| **Checkout, free plan** | At once. No payment provider is involved. |
+| **Checkout, Stripe** | When Stripe confirms the payment. Stripe then renews and charges it automatically. |
+| **Checkout, ConnectIPS** | When Crovver verifies the payment with the gateway. ConnectIPS does not renew on its own: the customer pays each period through a renewal. |
+| **Created in the dashboard** | **Subscriptions → Create subscription** creates it without checkout, for customers you invoice yourself, for example by bank transfer. You record its payments against its invoices in the dashboard. |
 
-## Status Transitions
+The currency is fixed when the subscription is created and never changes.
 
-```mermaid
-flowchart LR
-    pending --> trial --> active --> past_due --> canceled
-    pending --> active
-    past_due --> expired
-    active --> pending_cancel --> canceled
-```
+## Statuses
 
-Transitions are triggered by Stripe webhook events or explicit API calls:
+| Status | Meaning | Has access |
+|---|---|---|
+| `pending` | Created, waiting for the first payment | No |
+| `trial` | In a free trial | Yes |
+| `active` | Paid and current | Yes |
+| `past_due` | A renewal payment failed | No |
+| `pending_cancel` | Canceled, but the paid period has not ended | Yes, until the period ends |
+| `canceled` | Ended | No |
+| `expired` | Ended without being renewed | No |
 
-| Event / Action | Transition |
+## Renewal
+
+- **Stripe** subscriptions renew automatically. Each successful payment starts a new period and refills the plan's credits.
+- **Gateway and dashboard** subscriptions renew through a renewal invoice. The period is extended when that invoice is paid.
+- A subscription can be **paid ahead** for several periods, for example a monthly plan paid for a year. Credits still refill once per period. They are not granted all at once.
+
+## Cancellation
+
+| Billing | What cancel does |
 |---|---|
-| `checkout.session.completed` | `pending` → `active` or `trial` |
-| `customer.subscription.updated` | `trial` → `active` |
-| `invoice.payment_failed` | `active` → `past_due` |
-| `customer.subscription.deleted` | any → `canceled` |
-| `POST /subscriptions/{id}/cancel` (recurring) | `active` / `trial` / `past_due` → `pending_cancel` |
-| `POST /subscriptions/{id}/cancel` (manual billing) | `active` / `trial` / `past_due` → `canceled` |
+| Stripe | The subscription becomes `pending_cancel` and keeps access until the end of the period already paid. Stripe does not charge again. |
+| Gateway or dashboard | The subscription is `canceled` at once. |
 
-## Subscription Fields
+The customer can cancel from their billing page. You can cancel from the dashboard or from your backend with [`POST /api/public/subscriptions/{id}/cancel`](/api-reference/subscriptions/cancel).
 
-```json
-{
-  "id": "sub_crovver_abc123",
-  "status": "active",
-  "tenantId": "ten_xyz",
-  "planId": "plan_pro",
-  "trialEndsAt": null,
-  "currentPeriodStart": "2025-01-01T00:00:00Z",
-  "currentPeriodEnd": "2025-02-01T00:00:00Z",
-  "canceledAt": null,
-  "capacityUnits": 15,
-  "usedCapacity": 12,
-  "providerSubscriptionId": "sub_stripe_...",
-  "providerCustomerId": "cus_stripe_..."
-}
-```
+## Changing plans
 
-## Event Sourcing
+There is no in-place plan change yet. To move a customer to another plan of the same product, cancel the current subscription, then start a new one through checkout.
 
-Every subscription status change is written to `subscription_events`. This gives you a complete audit trail:
+While a canceled Stripe subscription is still in its paid period, checkout refuses a new subscription for the same product with `409 SUBSCRIPTION_ENDING`. The customer can subscribe again once that period ends.
 
-```json
-{
-  "event_type": "subscription.activated",
-  "previous_status": "trial",
-  "new_status": "active",
-  "occurred_at": "2025-02-01T00:00:00Z",
-  "metadata": {
-    "stripe_event_id": "evt_...",
-    "invoice_id": "in_..."
-  }
-}
-```
+<Warning>
+  Canceling a gateway or dashboard subscription ends it at once, and the unused part of the period is not credited back.
+</Warning>
 
-## Checking Subscription Status
+## Checking status
 
-Use the React SDK hook on the frontend:
+On the frontend, use the React SDK:
 
 ```tsx
-import { useSubscription } from 'crovver-react';
+import { useSubscription } from "crovver-react";
 
 function Dashboard() {
-  const { isActive, plan, subscription } = useSubscription();
-
+  const { isActive, subscription } = useSubscription();
   if (!isActive) return <UpgradePrompt />;
-
-  return <App trialEndsAt={subscription?.trialEndsAt} />;
+  return <App renewsAt={subscription?.currentPeriodEnd} />;
 }
 ```
 
-Or query the API from your backend:
+On your backend, list a customer's subscriptions with the Node or PHP SDK's `getSubscriptions`, or call [`GET /api/public/subscriptions/status`](/api-reference/subscriptions/status).
 
-```bash
-GET /api/public/subscriptions/status?publicKey=pk_live_...&tenantId=workspace_123
-```
+To react to changes as they happen, register a webhook endpoint. See [Outgoing webhooks](/guides/outgoing-webhooks).

@@ -1,43 +1,51 @@
 ---
-title: Seat-Based Billing
-description: Set up and manage per-seat pricing for B2B SaaS.
+title: Seat-based billing
+description: Charge B2B customers per seat, and prorate when a team grows mid-period.
 ---
 
-Seat-based billing lets you charge customers based on the number of active users in their workspace. Crovver handles proration on seat upgrades automatically.
+Seat-based billing charges a workspace for the seats it holds. Crovver tracks who holds a seat and prorates the charge when a customer adds seats partway through a billing period.
 
-## 1. Create a Seat-Based Plan
+## 1. Create a per-seat plan
 
-In the dashboard or via API:
+In the dashboard, open your product's plan and choose **Set price → Per Seat**:
 
-```json
-{
-  "name": "Business",
-  "is_seat_based": true,
-  "base_price": 5000,         // $50 base price
-  "included_seats": 10,       // Covers 10 seats
-  "per_seat_price": 500,      // $5 per additional seat
-  "min_seats": 5,
-  "max_seats": 500,
-  "billing_interval": "monthly"
-}
-```
+1. Pick the **provisioned meter** that counts seats, such as `seats`. Create it first under **Product catalog → Catalog → Meters**, with the source set to provisioned.
+2. Set the **provisioned quantity**: the seats included in the base price.
+3. Under **Per user**, set the base price and the price for each extra seat.
 
-**Pricing examples:**
-- 8 seats → $50 (within included seats)
-- 15 seats → $50 + (5 × $5) = $75
-- 25 seats → $50 + (15 × $5) = $125
+**Pricing example:** a base of $50 for 10 seats, plus $5 per extra seat.
 
-## 2. Checkout with Seat Count
+| Seats | Price |
+|---|---|
+| 8 | $50 |
+| 15 | $50 + 5 × $5 = $75 |
+| 25 | $50 + 15 × $5 = $125 |
 
-Pass `totalCapacityUnits` when creating the checkout session:
+### Tiered seat pricing
+
+Choose **Tiered** instead of **Per user** to price seats in bands. Each band has one flat price for the whole period, whatever the seat count inside it:
+
+| Seats | Band | Price |
+|---|---|---|
+| 8 | 1–10 | $80 |
+| 11 | 11–50 | $250 |
+| 40 | 11–50 | $250 |
+| 60 | 51+ | $400 |
+
+The plans API returns the bands in `seatTiers`, one list per currency. Price a plan at a seat count with the SDK's `planPeriodCharge(plan, seats)` (Node) or `$plan->periodCharge($seats)` (PHP) instead of reading `perSeatPrice`, which is 0 on a tiered plan.
+
+## 2. Check out with a seat count
+
+On the hosted pricing page, the customer picks the number of seats. For a backend checkout, pass `totalCapacityUnits`:
 
 ```bash
 POST /api/public/checkout
 Authorization: Bearer sk_live_...
 
 {
-  "requestingTenantId": "workspace_123",
-  "planId": "plan_business",
+  "externalTenantId": "workspace_123",
+  "externalUserId": "user_123",
+  "planId": "6f1c…",
   "provider": "stripe",
   "totalCapacityUnits": 20,
   "successUrl": "https://app.com/welcome",
@@ -45,20 +53,45 @@ Authorization: Bearer sk_live_...
 }
 ```
 
-## 3. Upgrade Seat Count with Proration
+## 3. Assign seats to users
 
-When a workspace needs more seats mid-billing cycle:
+Tell Crovver which of your users hold a seat. Each call is keyed on the workspace, `requestingEntityId`:
+
+```bash
+POST /api/public/capacity/bulk-allocate
+Authorization: Bearer sk_live_...
+
+{
+  "requestingEntityId": "workspace_123",
+  "users": [
+    { "externalUserId": "user_123", "email": "jane@acme.com" },
+    { "externalUserId": "user_456", "email": "sam@acme.com" }
+  ]
+}
+```
+
+List who holds a seat with [`GET /api/public/capacity/allocations`](/api-reference/capacity/allocations), and how many are used with [`GET /api/public/capacity/count`](/api-reference/capacity/count).
+
+## 4. Add seats mid-period, with proration
+
+When a workspace needs more seats than it pays for:
 
 ```bash
 POST /api/public/capacity/proration-checkout
 Authorization: Bearer sk_live_...
 
 {
-  "requestingTenantId": "workspace_123",
+  "externalTenantId": "workspace_123",
   "newCapacity": 30,
   "successUrl": "https://app.com/settings?upgraded=1",
   "cancelUrl": "https://app.com/settings/seats"
 }
 ```
 
-Crovver calculates the prorated charge for the remaining days in the billing period and returns a Stripe checkout URL. After payment, the subscription's `capacityUnits` updates automatically.
+Crovver charges only for the remaining days of the current period and returns a `checkoutUrl`. After payment, the subscription's seat count rises to the new number. From the next period on, the customer pays the full price for the new seat count.
+
+On a tiered plan, the charge is the step between the two bands for the days left: going from 10 to 11 seats halfway through a month on the ladder above charges ($250 − $80) × ½ = $85. A new seat count that stays in the current band costs nothing now. It applies at once, and the response has `requiresPayment: false`, `prorationId: null` and no `checkoutUrl`.
+
+Seat counts only go up mid-period. To lower them, renew at the smaller count.
+
+Customers can also add seats themselves on their billing page.

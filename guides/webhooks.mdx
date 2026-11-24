@@ -7,7 +7,7 @@ Crovver automatically registers and handles webhook events from your payment pro
 
 ## How It Works
 
-When you configure a payment provider in **Settings → Payment Providers**, Crovver registers its webhook endpoint with that provider automatically. All subscription lifecycle events flow through Crovver's webhook handler, which keeps your subscription states up to date.
+When you connect a payment provider in **Settings → Connections → Payment Providers**, Crovver registers its webhook endpoint with that provider automatically. All subscription lifecycle events flow through Crovver's webhook handler, which keeps your subscription states up to date.
 
 ## Events Processed
 
@@ -15,7 +15,7 @@ When you configure a payment provider in **Settings → Payment Providers**, Cro
 |---|---|
 | `checkout.session.completed` | Activates subscription (`pending` → `active` or `trial`) |
 | `customer.subscription.created` | Links provider subscription ID to Crovver record |
-| `customer.subscription.updated` | Handles trial end, plan changes |
+| `customer.subscription.updated` | Handles trial end and cancel-at-period-end |
 | `customer.subscription.deleted` | Cancels subscription |
 | `invoice.payment_succeeded` | Renews billing period |
 | `invoice.payment_failed` | Moves subscription to `past_due` |
@@ -24,6 +24,24 @@ When you configure a payment provider in **Settings → Payment Providers**, Cro
 
 Crovver deduplicates webhook events using the provider event ID. Replaying events is safe.
 
-## Do I Need to Configure Anything?
+## Do I need to configure anything?
 
-No. Crovver registers and handles webhooks for you when you connect a payment provider — there's no endpoint to set up, no signing secret to manage, and nothing to deploy. Subscription state stays in sync automatically.
+Usually not. Crovver registers its webhook with Stripe when you connect, and stores the signing secret itself.
+
+If Stripe refuses the registration, the connection still succeeds and the provider card shows **Webhook setup needed** with Crovver's webhook URL. Then:
+
+1. In the Stripe dashboard, go to **Developers → Webhooks** and add an endpoint with that URL.
+2. Select the six events in the table above.
+3. Copy the endpoint's signing secret, `whsec_…`, and paste it into the provider card in Crovver.
+
+Until this is done, Crovver cannot see Stripe's payment events, so Stripe subscriptions do not activate or renew.
+
+## ConnectIPS
+
+ConnectIPS does not send webhooks. The customer is redirected back after paying, and Crovver confirms the payment with the gateway server to server before activating anything. Its success and failure URLs must be registered with NCHL. The provider card shows both after you connect.
+
+Payments that are abandoned midway are checked again later and settled or voided automatically.
+
+## Webhooks to your own app
+
+This page covers the events Crovver receives from payment providers. To receive Crovver's own events in your app, such as a subscription starting or renewing, see [Outgoing webhooks](/guides/outgoing-webhooks).

@@ -1,0 +1,87 @@
+---
+title: Build with AI tools
+description: Give your coding assistant Crovver's docs as plain text, so it integrates against the real API.
+icon: "sparkles"
+---
+
+Coding assistants integrate Crovver faster and with fewer mistakes when they can read these docs instead of guessing. Crovver serves its documentation as plain text for AI tools.
+
+{/* Hidden until the Crovver MCP ships. Restore by removing this comment wrapper.
+
+## Docs MCP server
+
+`https://docs.crovver.com/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. It gives your assistant two read-only tools: a search across the docs, and a way to open any page in full. Add it once, and your assistant looks things up as it writes code.
+
+<Tabs>
+  <Tab title="Claude Code">
+    ```bash
+    claude mcp add --transport http crovver-docs https://docs.crovver.com/mcp
+    ```
+  </Tab>
+  <Tab title="Cursor">
+    Add this to `.cursor/mcp.json` in your project, or to `~/.cursor/mcp.json` for every project:
+
+    ```json
+    {
+      "mcpServers": {
+        "crovver-docs": { "url": "https://docs.crovver.com/mcp" }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Windsurf">
+    Add this to `~/.codeium/windsurf/mcp_config.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "crovver-docs": { "serverUrl": "https://docs.crovver.com/mcp" }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="VS Code">
+    Add this to `.vscode/mcp.json`:
+
+    ```json
+    {
+      "servers": {
+        "crovver-docs": { "type": "http", "url": "https://docs.crovver.com/mcp" }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+*/}
+
+## llms.txt
+
+Point your assistant at a plain-text copy of the docs:
+
+| File | Contents |
+|---|---|
+| [`/llms.txt`](https://docs.crovver.com/llms.txt) | An index of every page, with a one-line summary each |
+| [`/llms-full.txt`](https://docs.crovver.com/llms-full.txt) | Every page in full, in one file |
+
+Any page is also available as Markdown by adding `.md` to its URL, for example [`/quickstart.md`](https://docs.crovver.com/quickstart.md).
+
+{/* Hidden with the MCP section above.
+
+## A prompt to start with
+
+Once the MCP server is connected, a prompt like this gets you a first integration:
+
+```text
+Integrate Crovver billing into this app using the crovver-docs MCP server.
+Our product is B2B: a customer is a workspace.
+1. Create the Crovver customer from our backend when a workspace is created, with the owner's email.
+2. Wrap the frontend in CrovverProvider and gate the "advanced-reporting" feature.
+3. Add an Upgrade button that opens Crovver checkout.
+4. Consume "api_calls" credits from our API handler, with an idempotency key per request.
+5. Add a webhook endpoint that verifies the X-Crovver-Signature header.
+Check every method name and field against the docs before using it.
+```
+
+Replace the feature and meter keys with the exact keys from your dashboard, under **Product catalog → Catalog**.
+*/}

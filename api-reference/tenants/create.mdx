@@ -1,15 +1,15 @@
 ---
 title: Create Tenant
 api: POST /api/public/tenants
-description: Create a new B2B tenant (workspace).
+description: Create a tenant — a workspace (B2B) or an individual customer (D2C).
 ---
 
-Creates a new billing tenant in Crovver. For **B2B orgs**, call this when a new workspace/organization is created in your app. For **D2C**, tenants are auto-created on first checkout — this endpoint is not needed.
+Creates a new billing tenant in Crovver, listed as a **Customer** in the dashboard. For a **B2B** product, call this when a new workspace/organization is created in your app. For a **D2C** product, omit `externalTenantId`: the tenant is keyed on `externalUserId`, the same row a D2C checkout creates on its own if you skip this call.
 
 ## Request Body
 
-<ParamField body="externalTenantId" type="string" required>
-  The workspace/org ID from your application
+<ParamField body="externalTenantId" type="string">
+  The workspace/org ID from your application. Omit it for a D2C customer: the tenant is keyed on `externalUserId`.
 </ParamField>
 
 <ParamField body="name" type="string" required>
@@ -21,7 +21,7 @@ Creates a new billing tenant in Crovver. For **B2B orgs**, call this when a new 
 </ParamField>
 
 <ParamField body="ownerEmail" type="string">
-  Email address of the billing owner
+  Email address of the billing owner. It also becomes the customer's email in the dashboard; an email set there is never overwritten.
 </ParamField>
 
 <ParamField body="ownerName" type="string">
@@ -38,7 +38,7 @@ Creates a new billing tenant in Crovver. For **B2B orgs**, call this when a new 
 
 ## Authentication
 
-Requires a **secret key** (`Authorization: Bearer sk_live_...`). Restricted to B2B organizations.
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
 
 <RequestExample>
 ```bash cURL

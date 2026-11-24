@@ -1,0 +1,131 @@
+
+---
+title: Credits
+description: Track and gate metered feature usage with Crovver credit pools.
+---
+
+Credits let you meter consumable resources, such as AI tokens, SMS messages or API calls, against a customer's plan. Crovver tracks the balance, refills it every billing period, and refuses consumption on an allowance that blocks once it runs out.
+
+## 1. Check a Tenant's Credit Balance
+
+Call this from your frontend with the public key, or from your backend with the secret key.
+
+```bash
+# Frontend
+GET /api/public/credits/balance?tenantId=workspace_123
+x-public-key: pk_live_...
+
+# Backend
+GET /api/public/credits/balance?tenantId=workspace_123
+Authorization: Bearer sk_live_...
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "ai_tokens": {
+      "poolKey": "ai_tokens",
+      "displayName": "AI Tokens",
+      "baseRemaining": 750,
+      "addonRemaining": 500,
+      "total": 1250,
+      "limit": 1000,
+      "limitBehavior": "hard",
+      "nextExpiry": "2025-02-01T00:00:00Z",
+      "usagePercent": 0
+    }
+  }
+}
+```
+
+`baseRemaining` comes from the plan allocation; `addonRemaining` comes from purchased add-on packs. Use `total` for display and gating.
+
+<Note>
+  **Multi-product tenants:** if your org sells multiple products, a tenant can hold one active subscription per product. Pass `productSlug` (on both `credits/balance` and `credits/consume`) to target the right product's pools — e.g. `?tenantId=workspace_123&productSlug=ats`. Without it, the tenant's most recently created active subscription is used.
+</Note>
+
+## 2. Consume Credits
+
+Call this from your **backend** after the tenant performs a metered action. Requires a secret key.
+
+```bash
+POST /api/public/credits/consume
+Authorization: Bearer sk_live_...
+
+{
+  "tenantId": "workspace_123",
+  "poolKey": "ai_tokens",
+  "amount": 50,
+  "idempotencyKey": "req_abc123"
+}
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "result": "allowed",
+    "remaining": 1200,
+    "alreadyProcessed": false,
+    "poolKey": "ai_tokens"
+  }
+}
+```
+
+| `result` | Meaning |
+|---|---|
+| `allowed` | Credits were deducted |
+| `warning` | Credits were deducted, but this pool only tracks usage and is now over its allowance |
+| `blocked` | Not enough credits on a pool that blocks. Nothing was deducted, and `remaining` says what is left |
+
+<Warning>
+  Pass one `idempotencyKey` per action, derived from something stable such as a request or job ID. Sending the same key again returns the first result and deducts nothing, so retries are safe.
+</Warning>
+
+## 3. Gate actions before consuming
+
+To refuse an action before doing the work, read the balance first and compare `total` with what the action will cost. Then consume once the work is done. On a pool that blocks, `consume` still refuses if the balance ran out in between, so the balance check is only for a better user experience.
+
+<Warning>
+  `check-usage-limit` and `record-usage` are deprecated. Usage sent to `record-usage` is never counted. Use `credits/balance` and `credits/consume`.
+</Warning>
+
+## Limit behaviors
+
+| `limitBehavior` | Set in the dashboard as | What happens when credits run out |
+|---|---|---|
+| `hard` | Block | `consume` returns `blocked` and deducts nothing. Block the action |
+| `soft` | Track | `consume` deducts and returns `warning`. Warn the user, alert yourself or bill it yourself |
+
+## When Credits Refill
+
+Base credits refill automatically at the start of each billing period — you never trigger a refill
+manually. Add-on credits expire on their own schedule, set by the add-on's `expiry_type`
+(`period`, `days`, or `never`).
+
+**When** the refill happens depends on how the subscription is billed:
+
+| Billing | When base credits are granted |
+|---|---|
+| Provider-billed (Stripe) | On each successful charge, alongside `subscription.renewed` |
+| Manual, renewed on time or late | At payment, before `subscription.renewed` is sent |
+| Manual, renewed **early** | Not at payment — later, at each window boundary |
+
+<Warning>
+Paying a manual renewal **early** extends the period without granting credits yet. The contract now
+covers several credit windows, and each is granted at its own boundary — so the
+`subscription.renewed` you receive at payment time carries **pre-refill** balances.
+
+Each later grant arrives as its own
+[`credits.refilled`](/guides/outgoing-webhooks#credits-refilled) event. If you mirror balances in
+your own database, sync from that event rather than from the renewal.
+</Warning>
+
+A late renewal grants one window, not the whole gap. It does not back-fill unpaid months. Older pools set to roll over still carry their unused balance forward across the lapse, up to their cap.
+
+<Note>
+Reading `qty_granted` from a webhook payload? It is the **contract-lifetime total**, not the current
+window's grant, so it will usually far exceed the balance. See
+[Credit Balances](/guides/outgoing-webhooks#credit-balances).
+</Note>

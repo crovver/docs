@@ -4,7 +4,7 @@ api: POST /api/public/checkout
 description: Create a payment provider checkout session for a tenant.
 ---
 
-Creates a checkout session with the configured payment provider (Stripe, Khalti, eSewa) and returns a URL to redirect the user to.
+Creates a checkout session with the configured payment provider (Stripe or ConnectIPS) and returns a URL to redirect the user to.
 
 ## Request Body
 
@@ -13,7 +13,7 @@ Creates a checkout session with the configured payment provider (Stripe, Khalti,
 </ParamField>
 
 <ParamField body="externalUserId" type="string">
-  The user ID from your application. Required for D2C orgs — becomes the tenant identity.
+  The user ID from your application. For a D2C product, it is the customer's identity.
 </ParamField>
 
 <ParamField body="externalTenantId" type="string">
@@ -21,7 +21,7 @@ Creates a checkout session with the configured payment provider (Stripe, Khalti,
 </ParamField>
 
 <ParamField body="provider" type="string">
-  Payment provider name (`stripe`, `khalti`, `esewa`). Defaults to the org's configured provider.
+  Payment provider: `stripe` or `connectips`. Not needed for a free plan. Defaults to the org's configured provider.
 </ParamField>
 
 <ParamField body="currency" type="string">
@@ -54,7 +54,7 @@ Creates a checkout session with the configured payment provider (Stripe, Khalti,
 
 ## Authentication
 
-Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key` + `?orgId=`).
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
 
 <RequestExample>
 ```bash cURL (D2C)

@@ -1,14 +1,14 @@
 ---
 title: Record Usage (Deprecated)
 api: POST /api/public/record-usage
-description: Deprecated. Use POST /api/credits/consume instead.
+description: Deprecated. Use POST /api/public/credits/consume instead.
 ---
 
 <Warning>
-  This endpoint is deprecated. Use [`POST /api/credits/consume`](/api-reference/credits/consume) instead — it deducts directly from the credit ledger, is idempotent via `idempotencyKey`, and returns the remaining balance in a single call.
+  This endpoint is deprecated and **usage sent to it is never counted**: it writes to a log that nothing reads, so it neither reduces a customer's allowance nor blocks them. Use [`POST /api/public/credits/consume`](/api-reference/credits/consume) instead. It deducts from the customer's credits, is idempotent through `idempotencyKey`, and returns the remaining balance in one call.
 </Warning>
 
-Records a usage event for a tenant. Crovver accumulates these events and checks them against the plan's `limits` when `check-usage-limit` is called.
+Records a usage event for a tenant. Kept only so older integrations don't fail.
 
 ## Request Body
 
@@ -34,7 +34,7 @@ Requires a **secret key** (`Authorization: Bearer sk_live_...`).
 
 <RequestExample>
 ```bash cURL
-curl -X POST "https://api.crovver.com/api/public/record-usage" \
+curl -X POST "https://app.crovver.com/api/public/record-usage" \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{

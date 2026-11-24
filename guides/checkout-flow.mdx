@@ -1,116 +1,107 @@
 ---
-title: Checkout Flow
-description: End-to-end walkthrough of how a user subscribes through Crovver.
+title: Checkout flow
+description: How a customer subscribes, from your Upgrade button to an active subscription.
 ---
 
-This guide explains what happens from the moment a user clicks "Upgrade" to when their subscription is active in your app.
+There are two ways to start a checkout:
 
-## Flow Overview
+- **Hosted pricing page**: your frontend sends the customer to Crovver's pricing page, where they pick a plan and pay. This needs only the React SDK.
+- **Backend checkout**: your backend creates a checkout for a plan you choose and redirects the customer to pay. Use this when you build your own pricing page.
+
+## Hosted pricing page
 
 ```mermaid
 flowchart TD
-    A["User clicks Upgrade"] --> B["SDK calls POST /api/public/auth/checkout-token\n(publicKey + tenantId)"]
-    B --> C["Crovver returns a signed JWT"]
-    C --> D["Browser redirects to {ecomUrl}/pricing?token={jwt}"]
-    D --> E["Ecom app validates token, fetches plans\nUser selects a plan"]
-    E --> F["Ecom calls POST /api/public/checkout"]
-    F --> G["Crovver creates Stripe checkout session\nBrowser redirects to Stripe hosted checkout"]
-    G --> H["User enters card details"]
-    H --> I["Stripe fires webhook → POST /api/webhooks/stripe\nCrovver activates subscription"]
-    I --> J["useSubscription() returns isActive: true ✅"]
+    A["Customer clicks Upgrade"] --> B["React SDK requests a checkout token\nwith your public key"]
+    B --> C["Browser goes to Crovver's pricing page"]
+    C --> D["Customer picks a plan"]
+    D --> E{"Free plan?"}
+    E -- yes --> F["Subscription is active at once"]
+    E -- no --> G["Customer pays on Stripe or a local gateway"]
+    G --> H["Crovver confirms the payment\nand activates the subscription"]
+    F --> I["Customer returns to your app"]
+    H --> I
 ```
 
-## Step 1 — Trigger from Your App
-
-Use `useBillingRedirect` in your React frontend:
+### 1. Send the customer to the pricing page
 
 ```tsx
-import { useBillingRedirect } from 'crovver-react';
+import { useBillingRedirect } from "crovver-react";
 
 const { redirectToCheckout } = useBillingRedirect();
 
-// On button click:
-redirectToCheckout();
-
-// Or pre-select a plan/feature:
-redirectToCheckout({ requiredFeature: 'advanced_analytics' });
+redirectToCheckout();                                   // every published plan
+redirectToCheckout({ productSlug: "acme-workspace" });  // one product's plans
+redirectToCheckout({ requiredFeature: "data-export" }); // pre-select a plan with this feature
 ```
 
-## Step 2 — Checkout Token
+The SDK asks Crovver for a short-lived checkout token, valid for 10 minutes, and redirects to the pricing page with it. The token carries your organization and the customer, so the page shows your published plans.
 
-The SDK calls the Crovver API to mint a short-lived JWT (10 minutes):
+If the customer does not exist yet, this first checkout creates it from the provider's `tenantId`, `tenantName`, `userId` and `metadata.userEmail`.
 
-```bash
-POST /api/public/auth/checkout-token
-x-public-key: pk_live_...
+### 2. The customer picks a plan and pays
 
-{
-  "externalTenantId": "workspace_123",
-  "returnUrl": "https://yourapp.com/dashboard"
-}
-```
+- **Free plan**: the subscription is active immediately. No payment provider is involved.
+- **Stripe**: the customer pays on Stripe's checkout page. Crovver activates the subscription when Stripe confirms the payment, usually within seconds.
+- **ConnectIPS**: the customer pays on the gateway's page, then comes back. Crovver confirms the payment with the gateway before activating.
 
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "expiresAt": "2025-01-01T00:10:00Z"
-  }
-}
-```
+### 3. The customer comes back
 
-## Step 3 — Plan Selection
-
-The ecom app renders your available plans. The token carries the tenant context so the correct org's plans are shown.
-
-## Step 4 — Create Checkout Session
-
-The ecom app calls Crovver to create a Stripe session:
-
-```bash
-POST /api/public/checkout
-x-service-key: <CROVVER_SERVICE_KEY>
-
-{
-  "requestingTenantId": "workspace_123",
-  "planId": "plan_pro",
-  "provider": "stripe",
-  "successUrl": "https://yourapp.com/welcome",
-  "cancelUrl": "https://ecom.yourapp.com/pricing?canceled=true"
-}
-```
-
-## Step 5 — Stripe Webhook
-
-After payment, Stripe calls your webhook. Crovver processes `checkout.session.completed` and activates the subscription. The subscription status moves from `pending` → `active` (or `trial` if the plan has a trial).
-
-## Step 6 — Back in Your App
-
-The user returns to `successUrl`. Calling `refresh()` from `useSubscription` will re-fetch the now-active subscription:
+The customer lands on Crovver's confirmation page, then returns to your app. Refresh the subscription when they arrive:
 
 ```tsx
 const { refresh, isActive } = useSubscription();
 
 useEffect(() => {
-  if (searchParams.get('checkout') === 'success') {
-    refresh();
-  }
+  refresh();
 }, []);
 ```
 
-## Seat-Based Checkout
+Don't treat the return itself as proof of payment. Rely on `isActive`, `canAccess`, or the `subscription.activated` [webhook](/guides/outgoing-webhooks).
 
-For seat-based plans, include `totalCapacityUnits`:
+## Backend checkout
 
-```bash
-POST /api/public/checkout
-{
-  "requestingTenantId": "workspace_123",
-  "planId": "plan_business",
-  "provider": "stripe",
-  "totalCapacityUnits": 15
+Create the checkout from your backend with the secret key, then redirect the customer to the returned URL:
+
+```typescript
+const checkout = await crovver.createCheckoutSession({
+  externalTenantId: "workspace_123",
+  externalUserId: "user_123",
+  userEmail: "jane@acme.com",
+  planId: "6f1c…",                       // the plan's ID from getPlans()
+  provider: "stripe",
+  successUrl: "https://yourapp.com/billing/success",
+  cancelUrl: "https://yourapp.com/pricing",
+});
+
+// crovver-node 1.8.0's types don't include the free-plan fields yet
+const result = checkout as typeof checkout & { isFree?: boolean; successUrl?: string };
+
+if (result.isFree) {
+  redirect(result.successUrl!);           // already active
+} else {
+  redirect(result.checkoutUrl!);          // pay first
 }
 ```
 
-Crovver calculates the prorated price and creates the session accordingly.
+For a per-seat plan, pass the seat count as `totalCapacityUnits`. For a D2C product, omit `externalTenantId`: the customer is keyed on `externalUserId`.
+
+A free plan needs no `provider`. Its response has `isFree: true` and a `successUrl` instead of a `checkoutUrl`.
+
+
+## When checkout is refused
+
+| Response | Why |
+|---|---|
+| `409` | The customer already has a live subscription to this product. Cancel it first. See [Changing plans](/concepts/subscriptions#changing-plans). |
+| `409 SUBSCRIPTION_ENDING` | The customer canceled a subscription to this product that is still in its paid period. They can subscribe again when it ends. |
+| `404` | The plan does not exist, or it or its product is not published. |
+| `422 CURRENCY_NOT_SUPPORTED` | The plan has no price in the requested currency. |
+
+## The billing page
+
+Once subscribed, customers manage billing on Crovver's billing page: invoices, cancellation, seats and add-ons. Send them there with `redirectToBilling()` from `useBillingRedirect`.
+
+The first time a customer opens the billing page in a browser, Crovver emails a one-time sign-in link to the customer's billing email. The link is valid for 15 minutes, and the sign-in lasts 7 days in that browser. A customer without a billing email sees a message asking them to contact you, so always set one. See [Customers](/concepts/tenants#the-billing-email).
+
+Checkout itself never asks for this sign-in.

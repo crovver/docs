@@ -15,6 +15,16 @@ yarn add crovver-node
 
 **Requirements:** Node.js 18+. TypeScript is optional but fully supported.
 
+### Upgrading to 2.0
+
+2.0 removes calls that were deprecated in 1.x:
+
+- `recordUsage()`: use [`credits.consume`](#consume-credits).
+- `Plan.payment_providers`, `Plan.created_at` and `Plan.updated_at`: use `paymentProviders`, `createdAt` and `updatedAt`.
+- `organization.type` on the plans, tenant and subscriptions responses: read `plans[].product.type`.
+
+It also adds `Plan.seatTiers` and `planPeriodCharge()` for [tiered seat plans](/guides/seat-based-billing#tiered-seat-pricing), and `prorationId` on `createProrationCheckout` can be `null`.
+
 ## Initialize the Client
 
 ```typescript
@@ -30,6 +40,7 @@ const crovver = new CrovverClient({
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `apiKey` | string | required | Your secret API key (`sk_live_...`) |
+| `baseUrl` | string | `https://app.crovver.com` | Override the API URL |
 | `timeout` | number | `30000` | Request timeout in milliseconds |
 | `maxRetries` | number | `3` | Retry attempts for server errors |
 | `debug` | boolean | `false` | Log requests and responses |
@@ -43,11 +54,14 @@ const tenant = await crovver.createTenant({
   externalTenantId: "workspace_abc123",
   name: "Acme Corp",
   externalUserId: "user_123",
+  ownerEmail: "admin@acme.com",
 });
 
 // Retrieve a tenant
 const tenant = await crovver.getTenant("workspace_abc123");
 ```
+
+The ID you pass as `externalTenantId` is your own ID for the customer. The dashboard lists the tenant under **Customers**. Pass `ownerEmail`: it becomes the customer's billing email, which the customer needs to sign in to their billing page. An email set in the dashboard is never overwritten.
 
 ## Plans
 
@@ -55,9 +69,14 @@ const tenant = await crovver.getTenant("workspace_abc123");
 const { plans } = await crovver.getPlans();
 
 for (const plan of plans) {
-  console.log(`${plan.name} - $${plan.priceAmount / 100}/mo`);
+  // One period's price at a seat count, by the rules Crovver charges: flat, per seat or tiered.
+  // Amounts are in the currency's normal unit: 29 means 29.00. null = that seat count is not sold.
+  const price = planPeriodCharge(plan, 10);
+  console.log(`${plan.name}: ${plan.pricing.currency} ${price}/${plan.pricing.interval}`);
 }
 ```
+
+`planPeriodCharge` is exported next to `CrovverClient` (`import { CrovverClient, planPeriodCharge } from "crovver-node"`). Use it rather than reading `perSeatPrice`, which is 0 on a tiered plan.
 
 ## Subscriptions
 
@@ -75,10 +94,10 @@ await crovver.cancelSubscription(subscriptionId, "workspace_abc123", "User reque
 
 ```typescript
 // Single-product org
-const canAccess = await crovver.canAccess("workspace_abc123", "advanced_analytics");
+const canAccess = await crovver.canAccess("workspace_abc123", "advanced-analytics");
 
 // Multi-product: scope to a specific product
-const canAccess = await crovver.canAccess("workspace_abc123", "advanced_analytics", "product-a");
+const canAccess = await crovver.canAccess("workspace_abc123", "advanced-analytics", "product-a");
 
 // Subscription-existence check — does this tenant have any active sub for product-a?
 const hasProduct = await crovver.canAccess("workspace_abc123", undefined, "product-a");
@@ -86,63 +105,68 @@ const hasProduct = await crovver.canAccess("workspace_abc123", undefined, "produ
 
 ## Credits
 
-Credits are the preferred way to track and gate consumption in Crovver. Each credit pool has a key (e.g. `"ai_generations"`) and is refilled by plan entitlements or add-on purchases.
+Credits meter usage against a plan's allowances. Each pool is keyed by a meter key, such as `ai_tokens`.
 
 ### Check balance
 
 ```typescript
 const balance = await crovver.credits.balance({ tenantId: "workspace_abc123" });
 
-for (const pool of balance.pools) {
-  console.log(`${pool.poolKey}: ${pool.remaining} remaining`);
+for (const pool of Object.values(balance)) {
+  console.log(`${pool.poolKey}: ${pool.total} of ${pool.limit} left`);
 }
 ```
 
+The result is keyed by pool. Each pool has `baseRemaining` (plan credits), `addonRemaining`, `total`, `limit`, `limitBehavior` and `nextExpiry`.
+
 ### Consume credits
 
-`consume` is idempotent — passing the same `idempotencyKey` twice returns the original result without double-deducting.
+`consume` is idempotent. Sending the same `idempotencyKey` twice returns the first result and deducts nothing.
 
 ```typescript
 const result = await crovver.credits.consume({
   tenantId: "workspace_abc123",
-  poolKey: "ai_generations",
-  amount: 1,
-  idempotencyKey: crypto.randomUUID(), // stable per user action
-  metadata: { prompt: "summarise report" }, // optional
+  poolKey: "ai_tokens",
+  amount: 50,
+  idempotencyKey: `generate-${job.id}`,     // stable per action
+  metadata: { feature: "summarise" },        // optional
 });
 
-if (result.result === "success") {
-  console.log(`Remaining: ${result.remaining}`);
-} else {
-  // result.result === "insufficient_credits"
-  // Prompt the user to purchase an add-on or upgrade
+if (result.result === "blocked") {
+  // The allowance ran out. Nothing was deducted; result.remaining says what is left.
+  // Offer an add-on or an upgrade.
+} else if (result.result === "warning") {
+  // Deducted, but this tracked pool is now over its allowance.
 }
 ```
 
-**`ConsumeCreditsRequest` fields:**
+**`ConsumeInput` fields:**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `tenantId` | string | Yes | Your tenant/workspace ID |
-| `poolKey` | string | Yes | Credit pool identifier defined in your plan |
-| `amount` | number | Yes | Units to deduct |
-| `idempotencyKey` | string | Yes | Unique key per action; prevents double-deduction |
-| `metadata` | object | No | Arbitrary key/value pairs stored with the event |
+| `tenantId` | string | Yes | Your ID for the customer |
+| `poolKey` | string | Yes | The meter key, such as `ai_tokens` |
+| `amount` | number | Yes | Positive whole number of units to deduct |
+| `idempotencyKey` | string | Yes | Unique per action; prevents double deduction |
+| `subscriptionId` | string | No | Target one subscription, for customers with more than one |
+| `metadata` | object | No | Stored with the consumption event |
 
 **`ConsumeResponse` fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `result` | `"success" \| "insufficient_credits"` | Outcome of the deduction |
-| `remaining` | number | Credits left in the pool after deduction |
+| `result` | `"allowed" \| "warning" \| "blocked"` | Outcome of the deduction |
+| `remaining` | number | Credits left in the pool |
 | `alreadyProcessed` | boolean | `true` when the idempotency key was already seen |
 | `poolKey` | string | Echoed pool key |
+
+To scope a balance or consume call to one product by its slug, call the REST endpoints with `productSlug`. See [Consume credits](/api-reference/credits/consume).
 
 ---
 
 ## Add-ons
 
-Add-ons let tenants purchase extra credit packs without changing their base plan.
+Add-ons let customers buy extra credits without changing plan.
 
 ### List available add-ons
 
@@ -150,26 +174,28 @@ Add-ons let tenants purchase extra credit packs without changing their base plan
 const addons = await crovver.addons.listAvailable("workspace_abc123");
 
 for (const addon of addons) {
-  console.log(`${addon.name}: ${addon.creditQty} credits — ${addon.currency} ${addon.amount}`);
+  console.log(`${addon.display_name}: ${addon.credit_qty} credits for ${addon.currency} ${addon.amount}`);
 }
 ```
+
+Only add-ons compatible with the customer's current plan are listed, priced in the subscription's currency.
 
 ### Purchase an add-on
 
 ```typescript
 const purchase = await crovver.addons.purchase("workspace_abc123", {
-  addonId: "addon_uuid",
-  currency: "USD",
-  idempotencyKey: crypto.randomUUID(),
+  addonId: addon.id,
+  currency: addon.currency,
+  idempotencyKey: `addon-${order.id}`,
   successUrl: "https://yourapp.com/billing/success",
   cancelUrl: "https://yourapp.com/billing/cancel",
 });
 
 if (purchase.requiresPayment) {
-  // Redirect to Stripe checkout
-  window.location.href = purchase.checkoutUrl;
+  // Send the customer to pay
+  redirect(purchase.checkoutUrl!);
 } else {
-  // Credits added immediately (free add-on or already processed)
+  // A free add-on: the credits are already granted
   console.log(`${purchase.creditQty} credits added`);
 }
 ```
@@ -180,22 +206,52 @@ if (purchase.requiresPayment) {
 const active = await crovver.addons.getActive("workspace_abc123");
 
 for (const pool of active) {
-  console.log(`${pool.poolKey}: ${pool.remaining} remaining`);
+  console.log(`${pool.pool_key}: ${pool.addon_remaining} add-on credits left`);
 }
 ```
 
 ---
 
-## Usage Tracking (deprecated)
+## Seats
+
+For per-seat plans, record which of your users hold a seat, and charge for more seats when a team grows.
+
+```typescript
+// Give users seats on the customer's subscription
+await crovver.capacity.bulkAllocate({
+  requestingEntityId: "workspace_abc123",
+  users: [
+    { externalUserId: "user_123", email: "jane@acme.com" },
+    { externalUserId: "user_456", email: "sam@acme.com" },
+  ],
+});
+
+// List who holds a seat
+const allocations = await crovver.capacity.getAllocations({ requestingEntityId: "workspace_abc123" });
+
+// Buy more seats, prorated for the rest of the period
+const upgrade = await crovver.createProrationCheckout({
+  externalTenantId: "workspace_abc123",
+  newCapacity: 12,
+  successUrl: "https://yourapp.com/team?seats=added",
+  cancelUrl: "https://yourapp.com/team",
+});
+
+if (upgrade.requiresPayment) redirect(upgrade.checkoutUrl!);
+// else: the seats applied at once. On a tiered plan, a count inside the current band costs nothing now.
+```
+
+See [Seat-based billing](/guides/seat-based-billing) for the full flow.
+
+---
+
+## Usage limits (deprecated)
 
 <Warning>
-  `recordUsage` and `checkUsageLimit` are deprecated. They write to a simple event log with no idempotency and do not integrate with the credit pool system. Use [`credits.consume`](#credits) instead.
+  `checkUsageLimit` is deprecated and `recordUsage` was removed in 2.0: usage sent through it was never counted. Use [`credits.consume`](#consume-credits) and [`credits.balance`](#check-balance) instead.
 </Warning>
 
 ```typescript
-// ❌ Deprecated — use credits.consume() instead
-await crovver.recordUsage("workspace_abc123", "api_calls", 1);
-
 // ❌ Deprecated — use credits.balance() instead
 const limit = await crovver.checkUsageLimit("workspace_abc123", "api_calls");
 console.log(`${limit.current} / ${limit.limit}`);
@@ -208,12 +264,15 @@ console.log(`${limit.current} / ${limit.limit}`);
 ```typescript
 const session = await crovver.createCheckoutSession({
   externalTenantId: "workspace_abc123",
-  planId: "plan_pro",
+  externalUserId: "user_123",
+  planId: plan.id,
+  provider: "stripe",
   successUrl: "https://yourapp.com/billing/success",
   cancelUrl: "https://yourapp.com/billing/cancel",
 });
 
-// Redirect user to session.checkoutUrl
+// Redirect the customer to session.checkoutUrl.
+// For a free plan, see the checkout guide: the response carries isFree and successUrl instead.
 ```
 
 ## Invoices
@@ -228,7 +287,7 @@ const { invoices } = await crovver.getInvoices("workspace_abc123");
 import { CrovverClient, CrovverError } from "crovver-node";
 
 try {
-  const canAccess = await crovver.canAccess("workspace_abc123", "advanced_analytics");
+  const canAccess = await crovver.canAccess("workspace_abc123", "advanced-analytics");
 } catch (error) {
   if (error instanceof CrovverError) {
     error.message;      // Human-readable message

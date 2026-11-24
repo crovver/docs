@@ -1,68 +1,113 @@
 ---
 title: Quickstart
-description: Get Crovver integrated in your SaaS app.
+description: From sign-up to a gated feature, a paid checkout and metered credits.
 ---
 
-## 1. Create Your Org
+This is the whole integration, in the order you do it. Steps 1 to 6 happen in the [Crovver dashboard](https://app.crovver.com). Steps 7 to 11 happen in your app.
 
-Sign up at [app.crovver.com](https://app.crovver.com) — this is also where you create your organization. Choose your org type:
+## 1. Sign up and create your organization
 
-- **B2B** — your customers are companies or workspaces (multiple users per billing unit)
-- **D2C** — your customers are individuals (each user is their own billing unit)
+Sign up at [app.crovver.com](https://app.crovver.com) and confirm your email with the code we send. Then create your **organization**, which owns everything else: products, plans, keys, payment providers and your customers.
 
-## 2. Create a Plan
+When the organization is created, Crovver shows its **public key** (`pk_live_…`) and **secret key** (`sk_live_…`) once. Copy both before you close the dialog. You can create more keys later under **Developers → API Keys**.
 
-In the dashboard, go to **Products → Plans** and create your first plan.
+<Note>
+  The dashboard asks you to choose a Crovver plan for your organization before it opens.
+</Note>
 
-```json
-{
-  "name": "Pro",
-  "price_amount": 2900,
-  "billing_interval": "monthly",
-  "trial_days": 14,
-  "features": {
-    "advanced_analytics": true,
-    "api_access": true,
-    "custom_domain": false
-  },
-  "limits": {
-    "api_calls": 10000,
-    "team_members": 5
-  }
-}
-```
+## 2. Create a product
 
-## 3. Connect a Payment Provider
+Go to **Product catalog → All Products → New product**. A product is one thing you sell, such as "Acme Workspace". Pick its type:
 
-Go to **Settings → Payment Providers** and connect Stripe (or another supported provider). Add your API keys — Crovver stores them securely in your secrets manager.
+- **B2B**: your customers are companies or workspaces. You create each customer from your backend.
+- **D2C**: your customers are individuals. Checkout creates the customer on first purchase.
 
-## 4. Get Your API Keys
+The type is fixed once the product has a subscription. The product's **slug** is what your code passes as `productSlug` if you sell more than one product.
 
-Go to **Settings → API Keys** and generate:
+## 3. Define features and meters
 
-- A **Public Key** (`pk_live_...`) for your frontend
-- A **Secret Key** (`sk_live_...`) for your backend
+Under **Product catalog → Catalog**:
 
-## 5. Install the React SDK
+- **Features** are on/off capabilities, such as `advanced-reporting` or `sso`. Feature keys use lowercase letters, digits and hyphens.
+- **Meters** are things you count. A **metered** meter counts usage, such as `api_calls` or `ai_tokens`. A **provisioned** meter counts what a customer holds, such as `seats`. Meter keys use lowercase letters, digits and underscores.
 
-```bash
+The key is what your code checks, so choose it once and keep it. It cannot be changed later.
+
+## 4. Create plans
+
+Open your product and add a plan. **Set price** walks you through four choices:
+
+| Plan type | What the customer pays |
+|---|---|
+| **Free** | Nothing. No payment provider is involved. |
+| **Flat Rate** | A fixed price every billing cycle. |
+| **Per Seat** | A base price that covers a number of seats, plus a price per extra seat. You pick the provisioned meter that counts seats. |
+
+You can also set a monthly or annual billing period, a free trial and prices in more than one currency. In the same flow, under **Entitlements**, grant the plan its features and give it an allowance for each meter, such as 10,000 `api_calls` a month. Each allowance either **blocks** usage once it runs out or only **tracks** it.
+
+## 5. Publish
+
+Products and plans start as **drafts**. A draft is invisible to your app: it is not listed and cannot be bought. Click **Publish** on the product. That publishes it together with all of its draft plans in one step. If any draft plan has no price yet, nothing is published and the dialog names the plan to fix.
+
+Archiving a plan or product later stops new sales only. Existing subscribers keep their subscription and access.
+
+## 6. Connect a payment provider
+
+Go to **Settings → Connections → Payment Providers** and connect Stripe with your Stripe secret and publishable keys. Crovver stores them in a secrets manager, never in its database, and registers the Stripe webhook it needs for you.
+
+You can skip this step if you only offer free plans or subscriptions you invoice yourself.
+
+## 7. Install the SDKs
+
+<CodeGroup>
+```bash Frontend
 npm install crovver-react
-# or
-pnpm add crovver-react
 ```
 
-## 6. Wrap Your App
+```bash Node.js backend
+npm install crovver-node
+```
+
+```bash PHP backend
+composer require crovver/crovver-php
+```
+</CodeGroup>
+
+Put the public key in your frontend environment and the secret key in your backend only. A secret key never goes to the browser, and a public key is refused on backend endpoints.
+
+## 8. Create the customer from your backend
+
+For a B2B product, create a customer whenever a workspace is created in your app. Pass the billing owner's email: the customer uses it to sign in to their billing page later.
+
+```typescript
+import { CrovverClient } from "crovver-node";
+
+const crovver = new CrovverClient({ apiKey: process.env.CROVVER_SECRET_KEY! });
+
+await crovver.createTenant({
+  externalTenantId: workspace.id,  // your own ID for the workspace
+  name: workspace.name,
+  externalUserId: owner.id,
+  ownerEmail: owner.email,
+});
+```
+
+For a D2C product you can skip this. The first checkout creates the customer from the signed-in user.
+
+## 9. Wrap your app and gate a feature
 
 ```tsx
-// app/layout.tsx
+// app/providers.tsx
 import { CrovverProvider } from "crovver-react";
 
-export default function RootLayout({ children }) {
+export function Providers({ children, workspace, user }) {
   return (
     <CrovverProvider
       config={{
-        publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY,
-        tenantId: currentUser.id, // Your user/workspace ID
+        publicKey: process.env.NEXT_PUBLIC_CROVVER_PUBLIC_KEY!,
+        tenantId: workspace.id,        // the same ID you passed as externalTenantId
+        userId: user.id,
+        metadata: { userEmail: user.email },
       }}
     >
       {children}
@@ -71,35 +116,64 @@ export default function RootLayout({ children }) {
 }
 ```
 
-## 7. Gate a Feature
-
 ```tsx
 import { FeatureGuard } from "crovver-react";
 
-export function AnalyticsDashboard() {
+export function Reports() {
   return (
-    <FeatureGuard featureKey="advanced_analytics" fallback={<UpgradePrompt />}>
-      <Analytics />
+    <FeatureGuard featureKey="advanced-reporting" fallback={<UpgradePrompt />}>
+      <AdvancedReports />
     </FeatureGuard>
   );
 }
 ```
 
-## 8. Add a Checkout Button
+A customer with no subscription sees the fallback. Enforce the same check on your backend with `canAccess`, because a frontend gate alone can be bypassed.
+
+## 10. Send customers to checkout
 
 ```tsx
 import { useBillingRedirect } from "crovver-react";
 
 export function UpgradeButton() {
   const { redirectToCheckout } = useBillingRedirect();
-
-  return <button onClick={() => redirectToCheckout()}>Upgrade to Pro</button>;
+  return <button onClick={() => redirectToCheckout()}>Upgrade</button>;
 }
 ```
 
-That's it. When the user clicks the button, Crovver handles the checkout flow end-to-end — plan selection, Stripe session, and webhook processing.
+The customer picks a plan on Crovver's hosted pricing page and pays. A free plan activates at once. A paid plan activates when the payment provider confirms the payment, and the customer returns to your app. See [Checkout flow](/guides/checkout-flow).
 
-<Note>
-  Test end-to-end by creating a plan with `test_mode: true` and using Stripe
-  test card `4242 4242 4242 4242`.
-</Note>
+## 11. Meter usage with credits
+
+When a customer uses something you meter, consume credits from your backend. Use a stable idempotency key per action, so a retry never charges twice.
+
+```bash
+curl -X POST "https://app.crovver.com/api/public/credits/consume" \
+  -H "Authorization: Bearer $CROVVER_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "workspace_abc123",
+    "poolKey": "api_calls",
+    "amount": 1,
+    "idempotencyKey": "export-7f3a9c"
+  }'
+```
+
+A `blocked` result means the allowance ran out on a meter that blocks usage. Allowances refill at the start of each billing period. See [Credits](/guides/credits).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Receive webhooks" icon="webhook" href="/guides/outgoing-webhooks">
+    Keep your app in sync when subscriptions start, renew or end.
+  </Card>
+  <Card title="Test without real charges" icon="flask-conical" href="/guides/test-mode">
+    Run the whole flow against Stripe test keys.
+  </Card>
+  <Card title="Seat-based billing" icon="users" href="/guides/seat-based-billing">
+    Charge per seat, with proration when a team grows.
+  </Card>
+  <Card title="Add-ons" icon="package-plus" href="/guides/addons">
+    Sell top-up packs on top of a plan.
+  </Card>
+</CardGroup>

@@ -1,0 +1,42 @@
+---
+title: Products
+description: The things you sell, each with its own plans, type and lifecycle.
+---
+
+A **product** is one thing you sell, such as "Acme Workspace" or "Acme Analytics". Every plan belongs to exactly one product. Most companies start with one product. Add more when parts of your app are bought separately.
+
+## Product type: B2B or D2C
+
+Each product has a type that decides who the customer is:
+
+| Type | The customer is | How a customer is created |
+|---|---|---|
+| **B2B** | A company or workspace. Many of your users can share one subscription. | Your backend creates it with [`createTenant`](/api-reference/tenants/create) when a workspace is created in your app. |
+| **D2C** | An individual user, who is their own customer. | The first checkout creates it from the signed-in user. You can also create it ahead with `createTenant`. |
+
+You choose the type when you create the product. It is fixed once the product has a subscription.
+
+## The product slug
+
+Each product has a **slug**, such as `acme-workspace`. If you sell more than one product, pass it as `productSlug` to scope a call to one product:
+
+- the hosted pricing page shows only that product's plans
+- `canAccess`, credit balances and credit consumption look only at that product's subscription
+
+A customer can hold one live subscription per product, so a customer can subscribe to two products at once.
+
+## Lifecycle: draft, published, archived
+
+Products, plans and add-ons share one lifecycle:
+
+| Status | Listed and sold? | Existing subscribers |
+|---|---|---|
+| **Draft** | No. Invisible to the API, the pricing page and checkout. | Not applicable |
+| **Published** | Yes | Keep access |
+| **Archived** | No. Stops new sales. | Keep their subscription and access, and still renew |
+
+Publishing a product publishes all of its draft plans with it, in one step. If any draft plan has no price yet, nothing is published and the dashboard names the plan to fix. Unarchiving returns an item to draft, so it is reviewed before it is sold again.
+
+<Warning>
+  A plan is only sold when both the plan **and** its product are published. If a plan is missing from the pricing page or `GET /api/public/plans`, check both statuses first.
+</Warning>

@@ -1,0 +1,86 @@
+---
+title: List Subscriptions
+api: GET /api/public/subscriptions
+description: A customer's live subscriptions, with each plan's features and credit allowances.
+---
+
+Returns the customer's subscriptions that are `trial`, `active` or `past_due`, plus canceled ones still inside their paid period (`pending_cancel`). A customer holds at most one per product.
+
+## Query Parameters
+
+<ParamField query="requestingEntityId" type="string" required>
+  Your ID for the customer: the `externalTenantId`, or the user ID for a D2C customer.
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
+
+<RequestExample>
+```bash cURL
+curl "https://app.crovver.com/api/public/subscriptions?requestingEntityId=workspace_123" \
+  -H "Authorization: Bearer sk_live_..."
+```
+
+```typescript Node.js
+const { subscriptions } = await crovver.getSubscriptions("workspace_123");
+```
+
+```php PHP
+$result = $client->getSubscriptions('workspace_123');
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "subscriptions": [
+      {
+        "id": "26ddd9e7-cd75-4635-bf2a-a06986d51aba",
+        "status": "active",
+        "capacity": { "units": 1, "used": 0, "billing_mode": "recurring" },
+        "billing": {
+          "current_period_start": "2026-10-13T18:13:55.000Z",
+          "current_period_end": "2026-11-13T18:13:55.000Z",
+          "next_billing_date": "2026-11-13T18:13:55.000Z"
+        },
+        "trial": { "is_active": false, "ends_at": null },
+        "plan": {
+          "id": "56bf4835-e69f-4580-8df5-ee546b26be23",
+          "name": "Starter",
+          "pricing": { "currency": "USD", "interval": "monthly", "isSeatBased": false, "amount": 29 },
+          "features": { "basic-reporting": true, "data-export": true },
+          "creditPools": [
+            {
+              "pool_key": "api_calls",
+              "display_name": "API calls",
+              "limit_per_period": 1000,
+              "refill_behavior": "reset",
+              "limit_behavior": "hard"
+            }
+          ]
+        },
+        "product": { "name": "Acme Workspace" },
+        "metadata": { "provider": "stripe" }
+      }
+    ],
+    "tenant": {
+      "id": "439b8b31-19b8-4aac-bcc9-b5e98ad37a90",
+      "external_tenant_id": "workspace_123",
+      "name": "Acme Corp"
+    },
+    "organization": { "id": "88de74e1-82dd-4920-b216-5df786ad5495", "name": "Acme Inc" }
+  }
+}
+```
+
+```json 404
+{
+  "success": false,
+  "data": null,
+  "error": { "message": "Tenant not found" }
+}
+```
+</ResponseExample>

@@ -1,50 +1,44 @@
 ---
 title: Organizations
-description: The top-level entity in Crovver representing your company.
+description: Your company's account in Crovver, which owns everything else.
 ---
 
-An **Organization** (Org) is the account you create when you sign up for Crovver. It represents your company and owns everything — API keys, plans, products, and your customers' subscriptions.
+An **organization** is the account you create when you sign up for Crovver. It represents your company. It owns your products and plans, your payment provider connections, your API keys, your team and your customers.
 
-## Org Types
-
-When creating an org, you choose a type that determines how your customers are structured:
-
-<AccordionGroup>
-  <Accordion title="B2B (Business to Business)">
-    Your customers are companies, teams, or workspaces. Each customer can have multiple members. A billing unit is a **workspace** (tenant), not an individual user.
-
-    **Example:** A project management tool where "Acme Corp" is the billing unit, and Acme's employees are members.
-  </Accordion>
-  <Accordion title="D2C (Direct to Consumer)">
-    Your customers are individuals. Each user is their own billing unit.
-
-    **Example:** A personal productivity app where each user subscribes independently.
-  </Accordion>
-</AccordionGroup>
-
-## The Platform Org
-
-Crovver itself is a special **platform org** — the one org that manages Crovver's own subscriptions. This is how Crovver dogfoods itself. Only one platform org can exist per Crovver instance.
-
-## What Belongs to an Org
+## What belongs to an organization
 
 ```
-Org
-├── Products & Plans       ← What you're selling
-├── Payment Providers      ← Stripe, Khalti, eSewa configs
-├── API Keys               ← Public + secret keys for SDK/backend
-├── Admins                 ← Dashboard users
-└── Tenants                ← Your customers
-    └── Subscriptions      ← What your customers are paying for
+Organization
+├── Products               ← what you sell, each B2B or D2C
+│   └── Plans              ← prices and entitlements
+├── Features and meters    ← what plans grant
+├── Add-ons                ← extras sold on top of a plan
+├── Payment providers      ← Stripe, ConnectIPS
+├── API keys and webhooks  ← how your app talks to Crovver
+├── Team                   ← people who use the dashboard
+└── Customers              ← your customers
+    └── Subscriptions      ← what each customer pays for
 ```
 
-## API Keys
+## B2B or D2C is set per product
 
-Every org gets two types of keys:
+Whether your customers are companies or individuals is a property of each **product**, not of the organization. One organization can sell a B2B product and a D2C product side by side. See [Products](/concepts/products).
 
-| Key | Prefix | Use |
+## Your team
+
+Invite teammates under **Settings → Team**. Each member has a role that decides what they can see and change in the dashboard. A member can belong to more than one organization and switch between them from the sidebar.
+
+## API keys
+
+Every organization has two kinds of key:
+
+| Key | Prefix | Where it lives |
 |---|---|---|
-| Public Key | `pk_live_` / `pk_test_` | Frontend (React SDK) |
-| Secret Key | `sk_live_` / `sk_test_` | Backend API calls |
+| Public key | `pk_live_` | Your frontend, through the React SDK |
+| Secret key | `sk_live_` | Your backend only |
 
-Keys with the `_test_` prefix route to test-mode payment providers.
+Crovver shows both keys once, when they are created. Manage them under **Developers → API Keys**. See [Authentication](/authentication/overview).
+
+## Your Crovver subscription
+
+Your organization subscribes to Crovver itself, the same way your customers subscribe to you. The dashboard asks you to choose a Crovver plan before it opens, and you manage it from **Settings → Billing**.

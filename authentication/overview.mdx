@@ -1,56 +1,41 @@
 ---
-title: Authentication Overview
-description: Three credential types for three caller types.
+title: Authentication overview
+description: A public key for the browser and a secret key for your backend.
 ---
 
-Crovver uses three different credential types depending on who is making the call.
+Your app talks to Crovver with two kinds of key. Both are created in the dashboard under **Developers → API Keys**.
 
-## Credential Types
-
-| Type | Header | Who uses it | Format |
+| Key | Prefix | Used from | Sent as |
 |---|---|---|---|
-| Public Key | `x-public-key` or `?publicKey=` | Browser / React SDK | `pk_live_...` |
-| API Key (Secret) | `Authorization: Bearer` | Your backend server | `sk_live_...` |
-| Service Key | `x-service-key` | Ecom portal / internal services | env var |
+| Public key | `pk_live_` | The browser, through the React SDK | `x-public-key` header or `?publicKey=` |
+| Secret key | `sk_live_` | Your backend, through the Node or PHP SDK | `Authorization: Bearer sk_live_…` |
 
-## Which Key Should I Use?
+## Which key to use
 
 <AccordionGroup>
-  <Accordion title="I'm calling from the browser (React SDK)">
-    Use your **Public Key**. It's safe to expose in frontend code. It can only read data and initiate checkout — it cannot modify subscriptions.
+  <Accordion title="Calling from the browser">
+    Use the **public key**. It can read a customer's subscription status, check feature access and credit balances, list add-ons, and start checkout or the billing page. It cannot create customers, consume credits or cancel anything.
 
     ```tsx
-    <CrovverProvider config={{ publicKey: "pk_live_..." }}>
+    <CrovverProvider config={{ publicKey: "pk_live_…", tenantId: workspace.id }}>
     ```
   </Accordion>
 
-  <Accordion title="I'm calling from my backend server">
-    Use your **Secret Key** (API Key) in the `Authorization` header. Keep this server-side only — never expose it in client code.
+  <Accordion title="Calling from your backend">
+    Use the **secret key**. It can do everything the API offers. Keep it on the server only.
 
     ```bash
-    Authorization: Bearer sk_live_...
-    ```
-  </Accordion>
-
-  <Accordion title="I'm the Crovver ecom portal">
-    Use the **Service Key** with an `orgId` query param. This is an internal credential for server-to-server calls between Crovver services.
-
-    ```bash
-    x-service-key: <CROVVER_SERVICE_KEY>
-    GET /api/public/subscriptions?orgId=org_123
+    Authorization: Bearer sk_live_…
     ```
   </Accordion>
 </AccordionGroup>
 
-## Test vs Live Keys
+A public key sent to a backend-only endpoint is refused with `401`, even in the `Authorization` header.
 
-Both public and secret keys come in test and live variants:
+## Testing
 
-| Prefix | Environment |
-|---|---|
-| `pk_live_`, `sk_live_` | Production — real payments |
-| `pk_test_`, `sk_test_` | Test — routed to test payment credentials |
+Every key has the `live` prefix. Whether a payment is real depends on the payment provider credentials you connect, not on the key. To test without real charges, see [Test mode](/guides/test-mode).
 
-<Note>
-  Test keys route to payment providers configured with test credentials. Use Stripe test card `4242 4242 4242 4242` to simulate successful payments.
-</Note>
+## Rotating keys
+
+You can have several keys at once. To rotate one, create a new key, deploy it, then **Disable** or **Revoke** the old key. A disabled key can be enabled again. A revoked key stops working for good.

@@ -1,0 +1,48 @@
+---
+title: List Supported Providers
+api: GET /api/public/supported-providers
+description: The payment providers Crovver supports, with their currencies and capabilities.
+---
+
+Lists every payment provider Crovver supports, whether or not your organization has connected it. Use it if you build your own pricing page and want to offer only the providers that handle a currency. No key is needed.
+
+<RequestExample>
+```bash cURL
+curl "https://app.crovver.com/api/public/supported-providers"
+```
+
+```typescript Node.js
+const { providers } = await crovver.getSupportedProviders();
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "providers": [
+      {
+        "id": "018f3a0e-d4cb-44b9-ae0e-391e698090f2",
+        "code": "stripe",
+        "name": "Stripe",
+        "description": "Global payment processor with full subscription support, webhooks, and automatic billing.",
+        "supportsRecurringBilling": true,
+        "supportsWebhooks": true,
+        "capabilities": { "recurring": true, "one_time": true, "refunds": true }
+      },
+      {
+        "id": "0b68ccbd-6f2d-4552-ab2c-0c684ca069e1",
+        "code": "connectips",
+        "name": "ConnectIPS (NCHL)",
+        "supportsRecurringBilling": false,
+        "supportsWebhooks": false,
+        "capabilities": { "recurring": false, "one_time": true, "currencies": ["NPR"] }
+      }
+    ]
+  }
+}
+```
+</ResponseExample>
+
+Each provider also carries setup notes for the dashboard. Only `code`, `name` and `capabilities` matter to your app.

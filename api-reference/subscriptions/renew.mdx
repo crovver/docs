@@ -1,0 +1,72 @@
+---
+title: Renew Subscription
+api: POST /api/public/subscriptions/renew
+description: Start the payment for the next period of a ConnectIPS subscription.
+---
+
+Subscriptions paid through ConnectIPS do not renew on their own: one payment covers one period. This endpoint issues a renewal invoice and returns a `checkoutUrl` where the customer pays it. The subscription is extended, and its credits refilled, only once the gateway confirms the payment.
+
+Stripe subscriptions renew automatically and never need this call. Customers can also renew from their billing page.
+
+## Request Body
+
+<ParamField body="externalTenantId" type="string">
+  Your ID for a B2B customer.
+</ParamField>
+
+<ParamField body="externalUserId" type="string">
+  Your user ID, for a D2C customer.
+</ParamField>
+
+<ParamField body="provider" type="string" required>
+  `connectips`.
+</ParamField>
+
+<ParamField body="productSlug" type="string">
+  Which product's subscription to renew, when the customer has more than one.
+</ParamField>
+
+<ParamField body="periodMonths" type="number">
+  How many months to pay for. Defaults to the plan's billing period.
+</ParamField>
+
+<ParamField body="successUrl" type="string">
+  Where the customer lands after paying.
+</ParamField>
+
+<ParamField body="cancelUrl" type="string">
+  Where the customer lands if they abandon the payment.
+</ParamField>
+
+## Authentication
+
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://app.crovver.com/api/public/subscriptions/renew" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalTenantId": "workspace_123",
+    "provider": "connectips",
+    "successUrl": "https://yourapp.com/billing?renewed=1",
+    "cancelUrl": "https://yourapp.com/billing"
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "data": {
+    "checkoutUrl": "https://app.crovver.com/api/public/checkout/connectips/...",
+    "invoiceId": "b3c1e0d2-...",
+    "ref": "..."
+  }
+}
+```
+</ResponseExample>
+
+An abandoned renewal leaves the subscription untouched. The unpaid renewal invoice is voided automatically after a while.

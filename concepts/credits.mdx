@@ -1,126 +1,74 @@
 ---
-title: Credits & Credit Pools
-description: How Crovver tracks consumable resource allocations per tenant.
+title: Credits
+description: How metered allowances are granted, consumed and refilled for each customer.
 ---
 
-**Credit Pools** are named buckets of consumable resources tied to a plan. They let you model metered features — AI tokens, SMS messages, API calls, rendered PDFs — with automatic refill, rollover, and hard/soft limit behaviour.
+**Credits** are how Crovver meters usage. When a plan gives a [meter allowance](/concepts/plans#entitlements), such as 10,000 `api_calls` a month, each subscriber gets that many credits in a **pool** keyed by the meter. Your backend consumes credits as the customer uses the resource.
 
-## Credit Pool Fields
-
-| Field | Type | Description |
-|---|---|---|
-| `pool_key` | string | Unique key within an org (e.g., `ai_tokens`, `sms_credits`) |
-| `display_name` | string | Human-readable label shown in the portal |
-| `limit_per_period` | integer | Credits granted to the tenant each billing period |
-| `refill_behavior` | enum | `reset` — unused credits are dropped; `rollover` — they carry forward |
-| `rollover_cap` | integer \| null | Max credits that can carry over (null = no cap) |
-| `limit_behavior` | enum | `hard` — requests blocked once limit is hit; `soft` — requests allowed but flagged |
-
-## Credit Sources
-
-A tenant's balance in a pool comes from two sources:
+## Where credits come from
 
 ```
-Balance = Base Credits (from plan) + Addon Credits (purchased)
+Balance = plan allowance + add-on credits
 ```
 
-| Source | When granted | Expiry |
+| Source | Granted | Expires |
 |---|---|---|
-| **Base** | Automatically on subscription activation or renewal | End of billing period |
-| **Add-on** | After successful add-on purchase (payment confirmed) | Per add-on `expiry_type` |
+| **Plan allowance** | When the subscription activates, then at the start of every billing period | At the end of the period |
+| **Add-on credits** | When an [add-on](/concepts/addons) purchase is paid, or at once if it is free | As the add-on says: end of period, after a number of days, or never |
 
-## The Ledger
+## Refills
 
-Credits are tracked in a double-entry ledger table (`tenant_credit_ledger`). Each entry records:
+Allowances reset at the start of every billing period: the customer gets the full allowance again, and unused plan credits are dropped. Add-on credits are not touched by a refill.
 
-- `qty_granted` — credits issued at the time of grant
-- `qty_remaining` — credits not yet consumed (decremented on usage)
-- `source_type` — `base` or `addon`
-- `expires_at` — when these credits expire
+A subscription paid for several periods in advance, such as a monthly plan paid a year ahead, still refills once a month. Crovver refills each period on its own schedule, so the customer never gets the whole year's credits at once.
 
-When a tenant consumes a resource, Crovver deducts from the oldest non-expired grant first (FIFO within each pool).
+<Note>
+  Pools created before the current dashboard may be set to **roll over** unused credits, up to a cap. They keep working that way. New allowances always reset.
+</Note>
 
-## Checking Balance
+## Consuming credits
+
+Call [`POST /api/public/credits/consume`](/api-reference/credits/consume) from your backend with a secret key:
+
+```bash
+curl -X POST "https://app.crovver.com/api/public/credits/consume" \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "workspace_123",
+    "poolKey": "ai_tokens",
+    "amount": 50,
+    "idempotencyKey": "gen-8f2c1e"
+  }'
+```
+
+| Result | Meaning |
+|---|---|
+| `allowed` | Credits were deducted |
+| `warning` | Credits were deducted, but the pool tracks usage only and is now over its allowance |
+| `blocked` | Not enough credits on a pool that blocks usage. Nothing was deducted, and `remaining` says what is left |
+
+The plan allowance is used first, then add-on credits, starting with the ones that expire soonest.
+
+Every call needs an `idempotencyKey`. Sending the same key again returns the first result and deducts nothing, so retries are safe. Derive the key from the action, such as a request or job ID, never from the current time.
+
+## Checking the balance
 
 ```bash
 GET /api/public/credits/balance?tenantId=workspace_123
 Authorization: Bearer sk_live_...
 ```
 
-```json
-{
-  "success": true,
-  "data": {
-    "ai_tokens": {
-      "poolKey": "ai_tokens",
-      "displayName": "AI Tokens",
-      "baseRemaining": 750,
-      "addonRemaining": 500,
-      "total": 1250,
-      "limit": 1000,
-      "limitBehavior": "soft",
-      "nextExpiry": "2025-02-01T00:00:00Z",
-      "usagePercent": 0
-    }
-  }
-}
-```
+The response lists each pool with its plan credits, add-on credits, total and limit. See [Get credit balance](/api-reference/credits/balance).
 
-Balances are scoped to one subscription. For multi-product orgs — where a tenant holds one active subscription per product — pass `productSlug` to select the product's subscription; otherwise the most recently created active subscription is used.
+## More than one product
 
-## Recording Consumption
+Credits belong to one subscription. If a customer holds subscriptions to two products, pass `productSlug` on balance and consume calls to choose the product. Without it, Crovver uses the customer's most recent live subscription.
 
-Call `credits/consume` from your backend whenever a tenant consumes a credit. Every call requires an `idempotencyKey` — passing the same key twice returns the original result without double-deducting. It accepts the same optional `productSlug` scoping as the balance endpoint.
+## Canceled subscriptions
 
-```bash
-POST /api/credits/consume
-Authorization: Bearer sk_live_...
+A canceled subscription that is still inside its paid period keeps its credits until the period ends. After that, consumption returns `402 NO_SUBSCRIPTION`.
 
-{
-  "tenantId": "workspace_123",
-  "poolKey": "ai_tokens",
-  "amount": 50,
-  "idempotencyKey": "consume-1778423112701"
-}
-```
-
-## Hard vs Soft Limits
-
-| Behavior | What happens at the limit |
-|---|---|
-| `hard` | Crovver returns an error; your app should block the action |
-| `soft` | Usage is still recorded; your app receives a flag to warn the user |
-
-Use `check-usage-limit` to gate actions before consuming:
-
-```bash
-POST /api/public/check-usage-limit
-Authorization: Bearer sk_live_...
-
-{
-  "requestingEntityId": "workspace_123",
-  "metricKey": "ai_tokens"
-}
-```
-
-```json
-{
-  "data": {
-    "allowed": true,
-    "current": 800,
-    "limit": 1000,
-    "remaining": 200,
-    "percentage": 80
-  }
-}
-```
-
-## Rollover Example
-
-A plan with `ai_tokens: 1000/month, refill_behavior: rollover, rollover_cap: 500`:
-
-| Month | Granted | Used | End Balance | Rolled into next month |
-|---|---|---|---|---|
-| Jan | 1,000 | 700 | 300 | 300 (< cap) |
-| Feb | 1,000 + 300 | 400 | 900 | 500 (capped) |
-| Mar | 1,000 + 500 | 1,100 | 400 | 400 |
+<Warning>
+  `record-usage` and `check-usage-limit` are deprecated. `record-usage` writes to a table nothing reads, so usage recorded through it is never counted. Use `credits/consume` and `credits/balance` instead.
+</Warning>

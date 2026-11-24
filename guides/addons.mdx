@@ -1,0 +1,111 @@
+---
+title: Add-ons
+description: Let tenants purchase extra credit packs on top of their subscription.
+---
+
+Add-ons are extra credits a customer buys on top of their subscription, for example to top up AI tokens without changing plan.
+
+You create add-ons in the dashboard and mark which plans they are compatible with. See [Add-ons](/concepts/addons). Customers can buy them on their billing page without any work from you. To sell them inside your own app, use the three endpoints below.
+
+## 1. Show Available Add-ons
+
+Fetch the add-ons this customer can buy: those compatible with their current plan, priced in their subscription's currency. Call it with the public key from your frontend, or the secret key from your backend.
+
+```bash
+GET /api/public/tenants/{tenantId}/addons/available
+x-public-key: pk_live_...
+```
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "addon_abc",
+      "display_name": "AI Token Pack",
+      "description": "500 extra AI tokens",
+      "pool_key": "ai_tokens",
+      "credit_qty": 500,
+      "expiry_type": "days",
+      "expiry_days": 30,
+      "currency": "USD",
+      "amount": 15,
+      "current_balance": 250,
+      "pool_limit": 1000
+    }
+  ]
+}
+```
+
+`amount` is in the currency's normal unit: 15 means 15.00. If the customer's plan overrides the add-on's price, `amount` is the override. `current_balance` is what the customer already has in that pool, useful for showing "you have X left".
+
+## 2. Initiate a Purchase
+
+Call this from your **backend** with the secret key. It returns a `checkoutUrl` where the customer pays.
+
+```bash
+POST /api/public/tenants/{tenantId}/addons/purchase
+Authorization: Bearer sk_live_...
+
+{
+  "addonId": "addon_abc",
+  "currency": "USD",
+  "idempotencyKey": "purchase_workspace123_addon_abc_1717842000",
+  "successUrl": "https://app.com/billing?success=1",
+  "cancelUrl": "https://app.com/billing"
+}
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "purchaseId": "purchase_xyz",
+    "checkoutUrl": "https://checkout.stripe.com/...",
+    "requiresPayment": true,
+    "addonName": "AI Token Pack",
+    "creditQty": 500,
+    "amount": 15,
+    "currency": "USD"
+  }
+}
+```
+
+Redirect the customer to `checkoutUrl`. The credits are granted once the payment is confirmed. Crovver also sends an `addon.purchased` webhook.
+
+A free add-on, priced at 0, needs no payment. The response has `requiresPayment: false` and `checkoutUrl: null`, and the credits are already granted.
+
+For an add-on priced per unit, pass `qty` with the number of units, within the add-on's `min_qty` and `max_qty`.
+
+<Warning>
+  Use a unique `idempotencyKey` per purchase attempt. Passing the same key twice returns the original result without creating a duplicate charge.
+</Warning>
+
+## 3. Check Active Add-on Credits
+
+Fetch the customer's remaining add-on credits, not counting the plan's allowance. The public key works here too.
+
+```bash
+GET /api/public/tenants/{tenantId}/addons/active
+x-public-key: pk_live_...
+```
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "pool_key": "ai_tokens",
+      "addon_remaining": 500,
+      "active_addon_grants": 1,
+      "next_addon_expiry": "2025-07-08T00:00:00Z"
+    }
+  ]
+}
+```
+
+Use this to show tenants how many add-on credits they have and when they expire.
+
+## Currency Matching
+
+A customer can only buy an add-on in **the same currency as their subscription**. Pass that `currency` in the purchase request. Any other currency returns `422`.

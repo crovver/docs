@@ -6,7 +6,9 @@ description: Create a checkout session for a mid-cycle seat upgrade with prorati
 
 When a tenant needs more seats mid-billing cycle, this endpoint calculates the prorated charge for the remaining days and creates a Stripe checkout session for that amount.
 
-The actual capacity upgrade happens **after payment confirmation** via the Stripe webhook (`event_type: seat_proration`). For non-Stripe providers (Khalti, eSewa), an invoice is generated instead.
+The actual capacity upgrade happens **after payment confirmation** via the Stripe webhook (`event_type: seat_proration`). For ConnectIPS, the customer pays a proration invoice through the gateway, and the seats are added once it is verified.
+
+On a [tiered plan](/guides/seat-based-billing#tiered-seat-pricing), the charge is the difference between the new band's price and the current band's, for the days left. A count that stays in the current band costs nothing: the seats apply at once, `subscription.updated` is sent, and the response has `requiresPayment: false` and `prorationId: null`. A count no band holds is refused with `422 NO_BAND_FOR_QUANTITY`. On any plan, a `newCapacity` that is not above the current count is refused with `400 CAPACITY_NOT_INCREASED`.
 
 ## Request Body
 
@@ -32,7 +34,7 @@ The actual capacity upgrade happens **after payment confirmation** via the Strip
 
 ## Authentication
 
-Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key` + `?orgId=`).
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
 
 <RequestExample>
 ```bash cURL
@@ -75,6 +77,25 @@ curl -X POST "https://app.crovver.com/api/public/capacity/proration-checkout" \
     "requiresPayment": false,
     "prorationAmount": 1750,
     "message": "Invoice generated. Capacity will be updated after payment confirmation."
+  }
+}
+```
+
+```json 200 Tiered plan, same band
+{
+  "success": true,
+  "data": {
+    "prorationId": null,
+    "checkoutUrl": null,
+    "invoiceId": null,
+    "requiresPayment": false,
+    "prorationAmount": 0,
+    "prorationDetails": {
+      "description": "11–50 seats: no charge for the rest of this period",
+      "calculation": "USD 250 − 250",
+      "amount": 0
+    },
+    "message": "Capacity updated. No payment is due."
   }
 }
 ```

@@ -32,7 +32,7 @@ function Dashboard() {
   subscription: SubscriptionStatus | null;
   isLoading: boolean;
   error: Error | null;
-  isActive: boolean;                     // true if status is "active" or "trial"
+  isActive: boolean;                     // true while the customer has access: "active", "trial", or canceled but still in the paid period
   plan: PlanDetails | null;
   tenant: TenantDetails | null;
   subscriptionDetails: SubscriptionDetails | null;

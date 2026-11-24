@@ -40,15 +40,15 @@ Passing the same `idempotencyKey` twice returns the original result without doub
 
 ## Authentication
 
-Requires a **secret key** (`Authorization: Bearer sk_live_...`) or **service key** (`x-service-key`).
+Requires a **secret key** (`Authorization: Bearer sk_live_...`).
 
 ## Response
 
 <ResponseField name="data.result" type="string">
   Outcome: `allowed`, `warning`, or `blocked`.
   - `allowed` — credits deducted successfully
-  - `warning` — credits deducted but balance is now below zero (soft limit pool)
-  - `blocked` — insufficient credits on a hard limit pool; no deduction occurred
+  - `warning` — credits deducted, but this pool only tracks usage and is now over its allowance
+  - `blocked` — not enough credits on a pool that blocks; nothing was deducted, and `remaining` is what is still left
 </ResponseField>
 
 <ResponseField name="data.remaining" type="integer">
@@ -111,12 +111,12 @@ if (data.result === "blocked") {
 }
 ```
 
-```json 200 Blocked (hard limit)
+```json 200 Blocked (asked for 50, 12 left)
 {
   "success": true,
   "data": {
     "result": "blocked",
-    "remaining": 0,
+    "remaining": 12,
     "alreadyProcessed": false,
     "poolKey": "api_calls"
   }

@@ -1,47 +1,42 @@
 ---
-title: Test Mode
-description: Test the full checkout flow without real charges.
+title: Test mode
+description: Run the full checkout and billing flow without real charges.
 ---
 
-Crovver's test mode routes checkout through test payment credentials so you can exercise the full subscription lifecycle without real money.
+Whether a payment is real depends on the payment provider credentials your organization is connected to. Crovver keys always start with `pk_live_` and `sk_live_`, so there is no separate test key to switch to.
 
-## How Test Mode Works
+## Use a separate test organization
 
-Test mode is determined per-plan, not per-environment. A plan with `test_mode: true` routes checkout through test credentials. This means you can have test and live plans running in the same Crovver instance simultaneously.
+The simplest setup keeps test data apart from production:
 
-## Setup
+1. Create a second organization, such as "Acme (test)". You can switch between organizations from the dashboard sidebar.
+2. Build the same products and plans there. Use the same feature and meter keys as production, so your code works against both.
+3. Connect Stripe with your **Stripe test keys** (`sk_test_…` and `pk_test_…`).
+4. Use that organization's public and secret keys in your development and staging environments.
 
-**1. Connect test payment credentials**
+Checkouts in the test organization go through Stripe's test mode, so no card is charged. When you go live, swap in the production organization's keys.
 
-In the dashboard, go to **Settings → Payment Providers** and add a provider with test credentials (e.g., Stripe test secret key `sk_test_...`). Give it a name like `stripe-test`.
+## Stripe test cards
 
-**2. Create a test plan**
-
-Create a plan with `test_mode: true`. Crovver will automatically use the provider configured for test mode.
-
-**3. Use test API keys**
-
-Generate a `pk_test_...` public key and `sk_test_...` secret key from **Settings → API Keys**.
-
-## Stripe Test Cards
-
-| Card Number | Scenario |
+| Card number | Result |
 |---|---|
-| `4242 4242 4242 4242` | Successful payment |
+| `4242 4242 4242 4242` | Payment succeeds |
 | `4000 0000 0000 0002` | Card declined |
 | `4000 0025 0000 3155` | Requires 3D Secure |
 | `4000 0000 0000 9995` | Insufficient funds |
 
 Use any future expiry date and any 3-digit CVC.
 
-## Local Development Checklist
+## Stripe webhooks while testing
 
-- [ ] Crovver API running on `localhost:3000`
-- [ ] Stripe CLI running: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
-- [ ] Test plan created with `test_mode: true`
-- [ ] `pk_test_...` key set in your frontend env
-- [ ] `sk_test_...` key set in your backend env
+Crovver registers its Stripe webhook when you connect your test keys, so test payments activate subscriptions on their own. Nothing runs on your machine for this.
 
-<Note>
-  The Stripe CLI prints a webhook secret. Set it as `STRIPE_WEBHOOK_SECRET` in your Crovver `.env` for local webhook processing.
-</Note>
+If the provider card shows **Webhook setup needed**, add the endpoint by hand. See [Payment provider webhooks](/guides/webhooks#do-i-need-to-configure-anything).
+
+## Receiving Crovver's webhooks locally
+
+To receive [outgoing webhooks](/guides/outgoing-webhooks) on your laptop, expose your local server with a tunnel such as ngrok, and register the tunnel's HTTPS URL as an endpoint in the test organization.
+
+## Free plans and manual subscriptions
+
+You don't need a payment provider to test everything else. A free plan activates at once at checkout. From the dashboard you can also create a subscription for a test customer directly, with **Subscriptions → Create subscription**, then exercise feature gates, credits and seats against it.
